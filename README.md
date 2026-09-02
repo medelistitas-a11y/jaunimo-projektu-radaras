@@ -142,7 +142,7 @@ python -m app.scripts.manual_scrape --source skuodas_wp_api  # tik vienas šalti
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate   # arba 3.11 – testams pakanka
 pip install -r requirements-dev.txt
-python -m pytest tests/ -v          # 55 testai + 1 praleidžiamas be Chromium
+python -m pytest tests/ -v          # 88 testai + 1 praleidžiamas be Chromium
 ruff check app tests
 ruff format --check app tests
 ```
