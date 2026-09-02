@@ -36,9 +36,10 @@ def normalize_phone(raw: str) -> ParsedPhone:
             parsed = phonenumbers.parse(variant, "LT")
             if phonenumbers.is_valid_number(parsed):
                 return ParsedPhone(
-                    raw=raw, normalized=phonenumbers.format_number(
+                    raw=raw,
+                    normalized=phonenumbers.format_number(
                         parsed, phonenumbers.PhoneNumberFormat.E164
-                    )
+                    ),
                 )
         except phonenumbers.NumberParseException:
             continue

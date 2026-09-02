@@ -139,9 +139,7 @@ def assess_sales(
         return SalesResult(
             color="yellow",
             reason_code="concrete_opportunity_needs_contact_search",
-            explanation_lt=SALES_REASON_DESCRIPTIONS[
-                "concrete_opportunity_needs_contact_search"
-            ],
+            explanation_lt=SALES_REASON_DESCRIPTIONS["concrete_opportunity_needs_contact_search"],
             confidence=50,
             signals=signals,
         )

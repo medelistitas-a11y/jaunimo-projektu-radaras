@@ -1,10 +1,14 @@
 import datetime as dt
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.models.base import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.opportunity import Opportunity
 
 
 class Evidence(TimestampMixin, Base):
@@ -33,9 +37,7 @@ class EligibilityAssessment(TimestampMixin, Base):
     __tablename__ = "eligibility_assessments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    opportunity_id: Mapped[int] = mapped_column(
-        ForeignKey("opportunities.id"), unique=True
-    )
+    opportunity_id: Mapped[int] = mapped_column(ForeignKey("opportunities.id"), unique=True)
 
     verdict: Mapped[str] = mapped_column(String(20))  # taip | ne | su_salygomis | neaisku
     explanation_lt: Mapped[str] = mapped_column(Text)
@@ -58,9 +60,7 @@ class SalesAssessment(TimestampMixin, Base):
     __tablename__ = "sales_assessments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    opportunity_id: Mapped[int] = mapped_column(
-        ForeignKey("opportunities.id"), unique=True
-    )
+    opportunity_id: Mapped[int] = mapped_column(ForeignKey("opportunities.id"), unique=True)
 
     color: Mapped[str] = mapped_column(String(10))  # green | yellow | red
     reason_code: Mapped[str] = mapped_column(String(60))

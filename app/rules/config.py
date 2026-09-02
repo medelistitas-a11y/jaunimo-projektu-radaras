@@ -60,24 +60,45 @@ VENDOR_ROLE_MARKERS = [
 # --- Pardavimo galimybės (B) žodynas ---
 
 TRAINING_FIT_MARKERS = [
-    "mokym", "seminar", "dirbtuv", "kompetenc", "kvalifikacij", "superviz", "konsultacij",
-    "prevenc", "psichikos sveikat", "emoc",
+    "mokym",
+    "seminar",
+    "dirbtuv",
+    "kompetenc",
+    "kvalifikacij",
+    "superviz",
+    "konsultacij",
+    "prevenc",
+    "psichikos sveikat",
+    "emoc",
 ]
 
 DEADLINE_PASSED_HINTS = ["pasibaig", "jau pasibaigęs", "rezultatai paskelbti", "archyvuot"]
 
 PROCUREMENT_MARKERS = [
-    "viešasis pirkimas", "viešojo pirkimo", "pirkimo procedūr", "cvp is", "cvpis",
-    "skelbiamas pirkimas", "apklausos būdu",
+    "viešasis pirkimas",
+    "viešojo pirkimo",
+    "pirkimo procedūr",
+    "cvp is",
+    "cvpis",
+    "skelbiamas pirkimas",
+    "apklausos būdu",
 ]
 
 ACCREDITATION_MARKERS = [
-    "akreditacij", "licenc", "kvalifikacinis reikalavim", "patirties įrodym",
-    "registracij", "registruotis iki",
+    "akreditacij",
+    "licenc",
+    "kvalifikacinis reikalavim",
+    "patirties įrodym",
+    "registracij",
+    "registruotis iki",
 ]
 
 BUNDLED_LOGISTICS_MARKERS = [
-    "patalpų", "dalyvių surinkim", "maitinim", "kelion", "apgyvendinim",
+    "patalpų",
+    "dalyvių surinkim",
+    "maitinim",
+    "kelion",
+    "apgyvendinim",
 ]
 
 # --- reason_code -> žmogui skaitomas trumpas aprašymas (naudojama UI ir pranešimuose) ---

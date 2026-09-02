@@ -55,6 +55,7 @@ class PoliteHttpClient:
         max_retries: int = 3,
         max_download_bytes: int = 15 * 1024 * 1024,
         respect_robots: bool = True,
+        transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.user_agent = user_agent
         self.allowed_domains = allowed_domains
@@ -69,12 +70,13 @@ class PoliteHttpClient:
             follow_redirects=False,
             timeout=timeout_seconds,
             headers={"User-Agent": user_agent},
+            transport=transport,
         )
 
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "PoliteHttpClient":
+    def __enter__(self) -> PoliteHttpClient:
         return self
 
     def __exit__(self, *exc) -> None:
@@ -134,9 +136,7 @@ class PoliteHttpClient:
 
             content_length = resp.headers.get("content-length")
             if content_length and int(content_length) > self.max_download_bytes:
-                raise FetchError(
-                    f"Turinys per didelis: {content_length} baitų", resp.status_code
-                )
+                raise FetchError(f"Turinys per didelis: {content_length} baitų", resp.status_code)
 
             content = resp.content
             if len(content) > self.max_download_bytes:
@@ -147,7 +147,12 @@ class PoliteHttpClient:
 
             text: str | None = None
             content_type = resp.headers.get("content-type", "")
-            if "text" in content_type or "html" in content_type or "json" in content_type or "xml" in content_type:
+            if (
+                "text" in content_type
+                or "html" in content_type
+                or "json" in content_type
+                or "xml" in content_type
+            ):
                 text = resp.text
 
             return FetchResult(

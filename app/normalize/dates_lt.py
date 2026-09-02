@@ -89,9 +89,7 @@ def parse_first_date(text: str, reference_year: int | None = None) -> ParsedDate
         day = int(m.group("day"))
         d = _safe_date(year, month, day)
         if d:
-            return ParsedDate(
-                raw=m.group(0), start=d, is_deadline=bool(m.group("until"))
-            )
+            return ParsedDate(raw=m.group(0), start=d, is_deadline=bool(m.group("until")))
 
     m = _RANGE_RE.search(text)
     if m:
@@ -137,7 +135,7 @@ def find_all_dates(text: str, reference_year: int | None = None) -> list[ParsedD
             mark(m.span())
 
     for m in _RANGE_RE.finditer(text):
-        if any(consumed[m.start():m.end()]):
+        if any(consumed[m.start() : m.end()]):
             continue
         year = int(m.group("year")) if m.group("year") else ref_year
         month = LT_MONTHS[m.group("month").lower()]
@@ -148,15 +146,13 @@ def find_all_dates(text: str, reference_year: int | None = None) -> list[ParsedD
             mark(m.span())
 
     for m in _SINGLE_WORD_RE.finditer(text):
-        if any(consumed[m.start():m.end()]):
+        if any(consumed[m.start() : m.end()]):
             continue
         year = int(m.group("year")) if m.group("year") else ref_year
         month = LT_MONTHS[m.group("month").lower()]
         d = _safe_date(year, month, int(m.group("day")))
         if d:
-            results.append(
-                ParsedDate(raw=m.group(0), start=d, is_deadline=bool(m.group("until")))
-            )
+            results.append(ParsedDate(raw=m.group(0), start=d, is_deadline=bool(m.group("until"))))
             mark(m.span())
 
     results.sort(key=lambda r: text.index(r.raw))

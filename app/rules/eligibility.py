@@ -105,9 +105,8 @@ def assess_eligibility(
         if open_hits and negation_hits:
             if found_negated_open is None:
                 found_negated_open = s
-        elif open_hits:
-            if found_open is None:
-                found_open = s
+        elif open_hits and found_open is None:
+            found_open = s
 
         restricted_hits = _contains_any(s, RESTRICTED_APPLICANT_TYPES)
         restrictive_lang = _contains_any(s, RESTRICTIVE_LANGUAGE)

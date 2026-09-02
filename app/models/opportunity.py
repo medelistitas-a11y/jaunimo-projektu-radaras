@@ -1,10 +1,15 @@
 import datetime as dt
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.models.base import TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.assessment import ChangeEvent, EligibilityAssessment, Evidence, SalesAssessment
+    from app.models.organization import Contact
 
 
 class Opportunity(TimestampMixin, Base):
@@ -95,9 +100,7 @@ class UserReview(TimestampMixin, Base):
     __tablename__ = "user_reviews"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    opportunity_id: Mapped[int] = mapped_column(
-        ForeignKey("opportunities.id"), unique=True
-    )
+    opportunity_id: Mapped[int] = mapped_column(ForeignKey("opportunities.id"), unique=True)
 
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     interest: Mapped[str | None] = mapped_column(String(20), nullable=True)

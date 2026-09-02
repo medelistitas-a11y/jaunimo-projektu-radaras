@@ -22,9 +22,7 @@ def _is_public_ip(ip_str: str) -> bool:
     ip = ipaddress.ip_address(ip_str)
     if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
         return False
-    if ip.is_unspecified:
-        return False
-    return True
+    return not ip.is_unspecified
 
 
 def domain_matches(host: str, allowed: str) -> bool:

@@ -59,9 +59,7 @@ def make_sample_docx() -> None:
     path = FIXTURES_DIR / "sample.docx"
     doc = Document()
     doc.add_heading("SINTETINIS TESTINIS DOKUMENTAS (ne tikras)", level=1)
-    doc.add_paragraph(
-        "Kvietimas teikti paraiskas: Paaugliu psichikos sveikatos stiprinimo mokymai"
-    )
+    doc.add_paragraph("Kvietimas teikti paraiskas: Paaugliu psichikos sveikatos stiprinimo mokymai")
     doc.add_paragraph("Organizatorius: Testines rajono savivaldybes administracija")
     doc.add_heading("Tinkamumo salygos", level=2)
     doc.add_paragraph(
