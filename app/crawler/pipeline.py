@@ -54,9 +54,57 @@ class ProcessResult:
         self.is_updated = is_updated
 
 
-def _pick_dates(text: str, now: dt.date) -> dict:
+def _choose_deadline(deadlines: list, today: dt.date):
+    """Iš kelių tekste rastų "iki <data>" terminų pirmenybę teikia ANKSČIAUSIAM
+    dar NEPRAĖJUSIAM (>= šiandien) terminui, o ne tiesiog absoliučiai
+    ankstyviausiai datai. SVARBU (2026-09-02 duomenų kokybės auditas, žr.
+    SOURCE_AUDIT.md): realiu auditu rastas atvejis, kai puslapio tekste yra ir
+    SENA, jau praėjusi data (pvz. kito susijusio dokumento/nuostatų PATVIRTINIMO
+    data, ne paraiškų terminas) IR reali, būsima paraiškų priėmimo data — aklas
+    min() rinkdavosi seną, jau praėjusią datą, nes ji skaitmeniškai mažesnė.
+    """
+    future = [d for d in deadlines if d.start >= today]
+    if future:
+        return min(future, key=lambda d: d.start)
+    return min(deadlines, key=lambda d: d.start)
+
+
+def _pick_dates(text: str, now: dt.date, primary_text: str | None = None) -> dict:
+    """`primary_text` (jei duotas) yra PATIES puslapio tekstas, be prijungtų
+    dokumentų. SVARBU (2026-09-02 duomenų kokybės auditas, žr. SOURCE_AUDIT.md):
+    realiu auditu nustatyta, kad prie kelių skirtingų skelbimų prijungtas TAS
+    PATS bendrinis šablono dokumentas (pvz. bendra paraiškos forma) kartais
+    turi savo, VISIŠKAI NESUSIJUSIĄ "iki <data>" frazę (pvz. formos galiojimo
+    ar pavyzdinę datą), kuri, imant tiesiog min() iš VISŲ rastų terminų
+    (puslapis+dokumentai), klaidingai NUSTELBDAVO teisingą, straipsnio TEKSTE
+    esantį terminą (pvz. "iki kovo 26 d." → 2026-03-26, teisinga; bet
+    bendriniame dokumente rasta "iki 2025-05-18" laimėdavo kaip min()).
+    Todėl PIRMENYBĖ visada teikiama terminui, rastam PAČIAME puslapyje —
+    prie dokumentų tekste rastas terminas naudojamas TIK jei puslapyje jo
+    apskritai nėra.
+    """
+    if primary_text:
+        primary_deadlines = [
+            p for p in find_all_dates(primary_text, reference_year=now.year) if p.is_deadline
+        ]
+        if primary_deadlines:
+            chosen = _choose_deadline(primary_deadlines, now)
+            parsed = find_all_dates(text, reference_year=now.year)
+            ranges = [p for p in parsed if p.end is not None]
+            activity_start = ranges[0].start if ranges else None
+            activity_end = ranges[0].end if ranges else None
+            return {
+                "application_end": chosen.start,
+                "application_end_raw": chosen.raw,
+                "activity_start": activity_start,
+                "activity_end": activity_end,
+                "published_at": None,
+                "raw": [p.raw for p in primary_deadlines] + [p.raw for p in parsed],
+            }
+
     parsed = find_all_dates(text, reference_year=now.year)
     application_end = None
+    application_end_raw = None
     activity_start = None
     activity_end = None
     published_at = None
@@ -66,7 +114,15 @@ def _pick_dates(text: str, now: dt.date) -> dict:
     singles = [p for p in parsed if not p.is_deadline and p.end is None]
 
     if deadlines:
-        application_end = min(d.start for d in deadlines)
+        # SVARBU: `application_end_raw` VISADA turi atitikti TĄ PAČIĄ datą, kuri
+        # buvo pasirinkta kaip `application_end` — anksčiau čia (žr. process_candidate)
+        # buvo naudojamas tiesiog dates["raw"][0], t. y. PIRMA rasta data VISAME
+        # tekste, kuri dažnai NESUTAPDAVO su realiai pasirinktu min() terminu
+        # (rodydavo, pvz., nesusijusią 2023 m. datą kaip "raw" tekstą prie 2026 m.
+        # pasirinkto termino). Žr. SOURCE_AUDIT.md duomenų kokybės auditą.
+        chosen = _choose_deadline(deadlines, now)
+        application_end = chosen.start
+        application_end_raw = chosen.raw
     if ranges:
         activity_start = ranges[0].start
         activity_end = ranges[0].end
@@ -78,6 +134,7 @@ def _pick_dates(text: str, now: dt.date) -> dict:
 
     return {
         "application_end": application_end,
+        "application_end_raw": application_end_raw,
         "activity_start": activity_start,
         "activity_end": activity_end,
         "published_at": published_at,
@@ -160,14 +217,30 @@ def process_candidate(
     document_urls: list[str],
     now: dt.datetime | None = None,
     settings: Settings | None = None,
+    page_text: str | None = None,
 ) -> ProcessResult | None:
+    """`page_text`, jei duotas, yra TIK paties puslapio (be prijungtų dokumentų)
+    ištrauktas tekstas — `text` yra puslapis + visų prijungtų dokumentų tekstas
+    kartu. SVARBU (2026-09-02 duomenų kokybės auditas, žr. SOURCE_AUDIT.md):
+    aktualumo sprendimas (is_relevant_candidate) DABAR visada priimamas TIK
+    pagal `page_text` (jei jis duotas), NE pagal pilną `text`. Realiu auditu
+    prieš www.ltkt.lt ir skuodas.lt nustatyta, kad prie DAUGELIO skirtingų,
+    tarpusavyje nesusijusių skelbimų prijungti TIE PATYS bendriniai dokumentai
+    (pvz. bendri vertinimo kriterijų aprašai, bendros paraiškų formos), kurių
+    standartinė kalba (pvz. "socialinė nauda", "specialistų kompetencija")
+    klaidingai pažymėdavo VISIŠKAI nesusijusius skelbimus (architektūros,
+    žemės ūkio finansavimo ir kt.) aktualiais. Dokumentų tekstas TOLIAU
+    naudojamas datų/pinigų/tinkamumo citatų IŠTRAUKIMUI jau priimtiems
+    kandidatams — tik NE pačiam aktualumo sprendimui.
+    """
     now = now or dt.datetime.now(dt.UTC)
     today = now.date()
 
-    if not is_relevant_candidate(text):
+    relevance_text = page_text if page_text else text
+    if not is_relevant_candidate(relevance_text):
         return None
 
-    dates = _pick_dates(text, today)
+    dates = _pick_dates(text, today, primary_text=page_text)
     money = _pick_money(text)
     contacts_data = _extract_contacts(text, url)
     has_contact = any(c["phone_normalized"] or c["email"] for c in contacts_data)
@@ -194,7 +267,7 @@ def process_candidate(
             target_groups=[],
             summary=text[:1000],
             application_end=dates["application_end"],
-            application_end_raw=dates["raw"][0] if dates["raw"] else None,
+            application_end_raw=dates["application_end_raw"],
             activity_start=dates["activity_start"],
             activity_end=dates["activity_end"],
             published_at=dates["published_at"],
@@ -240,6 +313,7 @@ def process_candidate(
             opp.last_changed_at = now
             if dates["application_end"]:
                 opp.application_end = dates["application_end"]
+                opp.application_end_raw = dates["application_end_raw"]
             if money["total_budget_cents"]:
                 opp.total_budget_cents = money["total_budget_cents"]
             db.add(

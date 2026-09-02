@@ -12,6 +12,17 @@
 # app/scheduler/run_worker.py, kuris naudoja tikrą Europe/Vilnius laiko juostą
 # per APScheduler).
 #
+# SVARBU dėl dokumentų saugojimo: NEI web, NEI cron servisas neturi Render
+# disko (`disk:` bloko). Abu priklauso TIK nuo bendros PostgreSQL DB, kurioje
+# saugomas iš dokumentų ištrauktas tekstas, hash ir metaduomenys — to pakanka
+# visai programos funkcionalumui. Originalūs PDF/DOCX failai numatytai
+# NESAUGOMI. Jei norite juos išlaikyti, įjunkite S3_ENABLED ir užpildykite
+# S3_* kintamuosius (bet kuri S3 API suderinama saugykla — AWS S3, MinIO,
+# Cloudflare R2, DigitalOcean Spaces ir pan. per S3_ENDPOINT_URL), žr.
+# app/storage/object_store.py. Tai pakeičia ankstesnę architektūrą, kurioje
+# `web` ir `worker` bendrino vieną Render/Docker Compose diską — tokia
+# priklausomybė nuo bendro lokalaus disko tarp servisų PAŠALINTA.
+#
 # Kainos pastaba: Render planų kainos ir nemokamo lygio galimybės keičiasi.
 # ŠIS FAILAS NEŽADA, kad pasirinkti planai yra nemokami. Prieš publikuodami
 # patikrinkite aktualias kainas https://render.com/pricing ir pasirinkite
@@ -60,8 +71,18 @@ services:
         value: "true"
       - key: OCR_LANGUAGES
         value: lit+eng
-      - key: DOCUMENT_STORAGE_DIR
-        value: /data/documents
+      - key: S3_ENABLED
+        value: "false" # nustatykite "true" ir užpildykite S3_* laukus, jei norite saugoti originalus
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_REGION
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: LLM_MODEL
@@ -78,10 +99,6 @@ services:
         sync: false
       - key: SMTP_TO
         sync: false
-    disk:
-      name: mostai-documents
-      mountPath: /data/documents
-      sizeGB: 5
 
   - type: cron
     name: mostai-daily-crawl
@@ -108,8 +125,18 @@ services:
         value: "true"
       - key: OCR_LANGUAGES
         value: lit+eng
-      - key: DOCUMENT_STORAGE_DIR
-        value: /data/documents
+      - key: S3_ENABLED
+        value: "false"
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_REGION
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: LLM_MODEL
@@ -126,15 +153,3 @@ services:
         sync: false
       - key: SMTP_TO
         sync: false
-    # PASTABA: šiam cron servisui SĄMONINGAI NEPRIDĖTAS diskas. Render diskai yra
-    # priskirti vienam servisui ir NĖRA bendrinami tarp skirtingų servisų (web ir
-    # cron negalėtų matyti tų pačių failų), todėl originalūs šio darbo atsisiųsti
-    # dokumentai lieka tik laikinajame konteinerio faile ir yra ištrinami darbui
-    # pasibaigus. Iš dokumento ištrauktas TEKSTAS (kuris ir naudojamas vertinimams)
-    # visada įrašomas į bendrą PostgreSQL DB, todėl funkcionalumas nenukenčia —
-    # nukenčia tik galimybė vėliau atsisiųsti originalų PDF/DOCX failą per web
-    # sąsają dokumentams, rastiems būtent per šį cron darbą. Pilnas originalų
-    # išsaugojimas abiem servisams reikalautų išorinės objektų saugyklos (pvz.
-    # S3 suderinamos), kas laikoma tolesnio etapo darbu (žr. README apribojimus).
-    # Vietinis Docker Compose diegimas šio apribojimo neturi — ten `documents_data`
-    # tomas bendrinamas tarp `web` ir `worker` servisų.

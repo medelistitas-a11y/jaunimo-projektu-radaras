@@ -11,6 +11,7 @@ from app.db import get_db
 from app.models.assessment import Notification
 from app.models.opportunity import Opportunity
 from app.models.source import CrawlRun, Source
+from app.rules.processing_status import PROCESSING_STATUS_LABELS_LT
 from app.web.queries import apply_filters, base_query
 
 router = APIRouter()
@@ -32,25 +33,39 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
     opportunities = query.order_by(Opportunity.first_seen_at.desc()).limit(300).all()
 
+    # Etapo (processing_status) skaičiavimas ir grupavimas ATLIEKAMAS Python lygyje
+    # (kaip ir `topic` filtras aukščiau) — tai IŠVESTINĖ reikšmė iš jau esamų
+    # EligibilityAssessment/SalesAssessment laukų, ne atskiras DB stulpelis (žr.
+    # app/rules/processing_status.py). SVARBU: "Neapdoroti kandidatai" ir "Reikia
+    # žmogaus peržiūros" NIEKADA nerodomi kaip patvirtintos galimybės — žr.
+    # SOURCE_AUDIT.md duomenų kokybės auditą.
+    stage_filter = request.query_params.get("stage") or None
+    stage_counts = {"unprocessed_candidate": 0, "needs_review": 0, "confirmed": 0}
+    for o in opportunities:
+        stage_counts[o.processing_status] += 1
+    if stage_filter:
+        opportunities = [o for o in opportunities if o.processing_status == stage_filter]
+
     today = dt.date.today()
     week = today + dt.timedelta(days=7)
+    confirmed = [o for o in opportunities if o.processing_status == "confirmed"]
     stats = {
         "new_green": sum(
             1
-            for o in opportunities
+            for o in confirmed
             if o.sales
             and o.sales.color == "green"
             and o.first_seen_at.date() >= today - dt.timedelta(days=2)
         ),
         "new_yellow": sum(
             1
-            for o in opportunities
+            for o in confirmed
             if o.sales
             and o.sales.color == "yellow"
             and o.first_seen_at.date() >= today - dt.timedelta(days=2)
         ),
         "deadlines_soon": sum(
-            1 for o in opportunities if o.application_end and today <= o.application_end <= week
+            1 for o in confirmed if o.application_end and today <= o.application_end <= week
         ),
         "source_errors": db.query(Source).filter(Source.last_status == "error").count(),
         "last_check": db.query(CrawlRun).order_by(CrawlRun.started_at.desc()).first(),
@@ -63,6 +78,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "opportunities": opportunities,
             "stats": stats,
+            "stage_counts": stage_counts,
+            "stage_labels": PROCESSING_STATUS_LABELS_LT,
             "municipalities": sorted(municipalities),
             "filters": dict(request.query_params),
         },

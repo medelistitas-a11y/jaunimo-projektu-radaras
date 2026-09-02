@@ -32,6 +32,7 @@ def _to_summary(opp: Opportunity) -> OpportunitySummary:
         total_budget_cents=opp.total_budget_cents,
         sales_color=opp.sales.color if opp.sales else None,
         eligibility_verdict=opp.eligibility.verdict if opp.eligibility else None,
+        processing_status=opp.processing_status,
         next_action=opp.next_action,
         is_read=bool(opp.review and opp.review.is_read),
         first_seen_at=opp.first_seen_at,
@@ -139,13 +140,13 @@ def list_sources(db: Session = Depends(get_db)) -> dict:
     sources = db.query(Source).order_by(Source.municipality.is_(None), Source.name).all()
     total = len(sources)
     accessible = sum(1 for s in sources if s.status == "active")
-    blocked = sum(1 for s in sources if s.status == "blocked_bot_protection")
+    blocked = sum(1 for s in sources if s.status == "blocked_in_current_runtime")
     needs_verification = sum(1 for s in sources if s.status == "needs_verification")
     return {
         "summary": {
             "total": total,
             "active": accessible,
-            "blocked_bot_protection": blocked,
+            "blocked_in_current_runtime": blocked,
             "needs_verification": needs_verification,
             "label": f"sėkmingai patikrinta {accessible}/{total}",
         },

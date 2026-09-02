@@ -25,8 +25,17 @@ test: ## Paleisti testus (be Docker, naudoja SQLite)
 test-docker: ## Paleisti testus Docker konteineryje
 	docker compose exec web pytest tests/ -v
 
+test-storage-decoupling: ## Integracinis testas: web+worker atskiruose konteineriuose BE bendro tomo (reikia Docker, ilgai trunka)
+	. .venv/bin/activate && python -m pytest tests/test_storage_decoupling.py -v -m docker
+
 lint: ## Ruff patikra ir formatavimo patikra
 	. .venv/bin/activate && ruff check app tests && ruff format --check app tests
+
+smoke: ## Gyvi (live) testai prieš realias svetaines (JRA/Vilnius/LTKT/Kaunas/Skuodas) — nebūtini CI
+	. .venv/bin/activate && python -m pytest tests/ -v -m live
+
+smoke-jra-vilnius: ## Atskiras JRA+Vilniaus pasiekiamumo smoke testas (paleisti iš realios hostingo aplinkos)
+	. .venv/bin/activate && python -m app.scripts.smoke_test_jra_vilnius
 
 format: ## Automatiškai suformatuoti kodą
 	. .venv/bin/activate && ruff format app tests && ruff check app tests --fix

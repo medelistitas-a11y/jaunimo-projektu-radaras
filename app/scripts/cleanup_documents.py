@@ -1,7 +1,11 @@
-"""Ištrina originalius dokumentų failus, senesnius nei DOCUMENT_RETENTION_DAYS.
+"""Ištrina originalius dokumentų failus (S3 suderinamoje saugykloje),
+senesnius nei DOCUMENT_RETENTION_DAYS.
 
 Ištrauktas tekstas (Document.extracted_text) DB įraše NELIEČIAMAS — trinamas
-tik originalus failas diske ir Document.storage_path nustatomas į NULL.
+tik originalas saugykloje ir Document.storage_path nustatomas į NULL. Jei
+S3 neįjungta, dauguma Document įrašų iš viso neturės storage_path (originalai
+niekada nebuvo saugomi), todėl šis skriptas paprastai neras ką valyti — tai
+NORMALU, ne klaida.
 
 Naudojimas: python -m app.scripts.cleanup_documents
 """
@@ -10,11 +14,11 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from pathlib import Path
 
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models.document import Document
+from app.storage.object_store import delete_document
 
 logger = logging.getLogger("app.scripts.cleanup_documents")
 
@@ -31,9 +35,8 @@ def cleanup_old_documents() -> int:
             .all()
         )
         for doc in old_docs:
-            path = Path(doc.storage_path)
-            if path.exists():
-                path.unlink(missing_ok=True)
+            if doc.storage_path.startswith("s3://"):
+                delete_document(doc.storage_path, settings)
             doc.storage_path = None
             deleted += 1
         db.commit()

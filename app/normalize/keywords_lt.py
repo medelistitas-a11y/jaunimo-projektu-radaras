@@ -38,7 +38,7 @@ POSITIVE_STEMS: list[str] = [
     "narkot",
     "alkohol",
     "tabak",
-    "priklausom",
+    "priklausomyb",
     "prevenc",
     "neformal",
     "įtraukt",
@@ -52,6 +52,7 @@ POSITIVE_STEMS: list[str] = [
     "paslaugų teikėj",
     "lektor",
     "ekspert",
+    "specialist",
     "partner",
     "konkurs",
     "kvietim",
@@ -67,9 +68,18 @@ POSITIVE_STEMS: list[str] = [
 # beveik KIEKVIENAME savivaldybės naujienų sraute (pvz. straipsniuose apie
 # infrastruktūros projektus, viešuosius pirkimus, kultūros renginius), taigi vieno
 # tokio žodžio PAKAKTI negali, kad tekstas būtų laikomas aktualiu (žr. instrukcijos
-# "kontekstas svarbiau už raktažodžių skaičių"). `is_relevant_candidate` todėl reikalauja
-# arba bent vieno signalo iš siauresnio, jaunimo/mokymų temai specifinio poaibio, arba
-# kelių bendrų signalų kartu — o ne vien atsitiktinio bendro žodžio.
+# "kontekstas svarbiau už raktažodžių skaičių").
+#
+# SVARBU (2026-09-02 duomenų kokybės auditas, žr. SOURCE_AUDIT.md): ankstesnė versija
+# leisdavo tekstą laikyti aktualiu vien dėl ≥3 bendrų/administracinių žodžių KARTU, be
+# jokio specifinio signalo. Realiu auditu prieš www.ltkt.lt nustatyta, kad ŠI riba
+# beveik NIEKO nefiltruoja — bet kuris finansavimo kvietimas BET KURIA tema (pvz.
+# architektūros, dizaino, muziejų konkursai, visiškai nesusiję su jaunimu ar mokymais)
+# savaime paminės "konkursas", "kvietimas", "finansavimas", "projektas", "programa" ir
+# "partneris" kelis kartus vien todėl, kad tai yra finansavimo kvietimo TEKSTO ŽANRAS,
+# o ne jaunimo/mokymų temos signalas. Todėl `is_relevant_candidate` DABAR visada
+# reikalauja bent vieno SPECIFINIO (ne administracinio) signalo — vien bendrų žodžių,
+# nesvarbu kiek jų, NEPAKANKA.
 _GENERIC_ADMINISTRATIVE_STEMS: set[str] = {
     "konkurs",
     "kvietim",
@@ -85,6 +95,22 @@ _GENERIC_ADMINISTRATIVE_STEMS: set[str] = {
     "veiklų vykdytoj",
     "paslaugų teikėj",
     "įtraukt",
+    # "kvalifikacij" (kvalifikacijos kėlimas) pati viena YRA per daug bendra —
+    # tai standartinė leidžiamų veiklų/išlaidų kategorija beveik kiekviename
+    # finansavimo konkurse BET KURIOJE srityje (pvz. LTKT architektūros ar
+    # muzikos konkursuose ji reiškia PAČIŲ pareiškėjų, ne "Mostai" tikslinės
+    # auditorijos, profesinį tobulėjimą). Realus rastas atvejis: LTKT
+    # architektūros konkurso puslapis (nesusijęs su jaunimu) buvo klaidingai
+    # pažymimas aktualiu vien dėl šio žodžio standartiniame veiklų sąraše.
+    "kvalifikacij",
+    # "specialist" viena pati taip pat per daug bendra — tai standartinis
+    # institucijos KONTAKTINIO ASMENS pareigybės pavadinimas ("Vyriausioji
+    # specialistė"), esantis beveik KIEKVIENO valstybinės institucijos puslapio
+    # kontaktų bloke, nepriklausomai nuo puslapio temos. Realus rastas atvejis:
+    # visi LTKT konkursų puslapiai (architektūros, dizaino ir kt., nesusiję su
+    # jaunimu) turėjo bendrą kontaktų bloką "Vyriausioji specialistė ... tel. ...",
+    # kuris vienas pats klaidingai pažymėdavo puslapį aktualiu.
+    "specialist",
 }
 
 NEGATIVE_HINTS: list[str] = [
@@ -118,16 +144,14 @@ def find_negative_signals(text: str) -> list[str]:
     return [stem for stem, pattern in _NEGATIVE_PATTERNS if pattern.search(text)]
 
 
-def is_relevant_candidate(text: str, min_generic_only_signals: int = 3) -> bool:
+def is_relevant_candidate(text: str) -> bool:
     """Greitas pirminis filtras: ar tekstą apskritai verta toliau apdoroti.
 
-    Vieno specifinio (ne vien administracinio) signalo pakanka. Vien bendrų/
-    administracinių žodžių (žr. `_GENERIC_ADMINISTRATIVE_STEMS`) reikia bent
-    `min_generic_only_signals`, kad sumažintume klaidingų teigiamų atvejų
-    (pvz. bendrų savivaldybės naujienų apie infrastruktūros pirkimus).
+    Reikalaujamas bent vienas SPECIFINIS (ne vien administracinis) signalas —
+    žr. `_GENERIC_ADMINISTRATIVE_STEMS` docstring aukščiau dėl to, kodėl vien
+    bendrų administracinių žodžių, nesvarbu kiek jų, NEPAKANKA: kiekvienas
+    finansavimo kvietimas bet kuria tema juos paminės vien dėl žanro.
     """
     positives = find_positive_signals(text)
     specific = [p for p in positives if p not in _GENERIC_ADMINISTRATIVE_STEMS]
-    if specific:
-        return True
-    return len(positives) >= min_generic_only_signals
+    return bool(specific)

@@ -11,7 +11,7 @@ import time
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.crawler.adapters import generic_html, wp_json
+from app.crawler.adapters import generic_html, ltkt_table, wp_json
 from app.crawler.adapters.js_playwright import PlaywrightUnavailableError
 from app.crawler.adapters.js_playwright import discover_items as js_discover_items
 from app.crawler.dedupe import canonicalize_url
@@ -29,6 +29,7 @@ logger = logging.getLogger("app.crawler.runner")
 _ADAPTERS = {
     "generic_html": generic_html.discover_items,
     "wp_json": wp_json.discover_items,
+    "ltkt_table": ltkt_table.discover_items,
 }
 
 _DOC_EXT_TO_TYPE = {".pdf": "pdf", ".docx": "docx", ".doc": "doc", ".xlsx": "xlsx"}
@@ -45,24 +46,19 @@ def _document_type(url: str) -> str:
 def _persist_original(
     content: bytes, content_hash: str, file_type: str, settings: Settings
 ) -> str | None:
-    """Įrašo originalų dokumentą į DOCUMENT_STORAGE_DIR, jeigu katalogas
-    egzistuoja ir yra rašomas (pvz. Docker Compose bendras tomas). Jei ne
-    (pvz. atskiras vienkartinis Render cron konteineris be bendro disko su
-    web servisu) — tyliai negrąžina kelio; ištrauktas tekstas vis tiek
-    išsaugomas DB, kuri YRA bendra abiem servisams.
+    """Įkelia originalų dokumentą į S3 suderinamą saugyklą, JEI sukonfigūruota
+    (žr. app/storage/object_store.py). Web ir cron servisai NEPRIKLAUSO nuo
+    bendro lokalaus disko — jei S3 neįjungta, originalas po teksto ištraukimo
+    tiesiog SAUGIAI NEPAIMAMAS (grąžina None); ištrauktas tekstas, hash ir
+    metaduomenys vis tiek išsaugomi DB, kuri YRA bendra abiem servisams ir
+    yra vienintelis reikalingas šaltinis tiesai.
     """
-    from pathlib import Path
+    from app.storage.object_store import upload_document
 
-    try:
-        base_dir = Path(settings.document_storage_dir)
-        base_dir.mkdir(parents=True, exist_ok=True)
-        target = base_dir / f"{content_hash}.{file_type}"
-        if not target.exists():
-            target.write_bytes(content)
-        return str(target)
-    except OSError as exc:
-        logger.debug("Nepavyko išsaugoti originalaus dokumento (%s): %s", content_hash, exc)
+    if not settings.s3_enabled:
         return None
+    key = f"documents/{content_hash}.{file_type}"
+    return upload_document(content, key, settings)
 
 
 def _try_advisory_lock(db: Session, key: int = 823_401) -> bool:
@@ -125,7 +121,7 @@ def run_crawl(
 
             if check.status == "ok":
                 run.sources_ok += 1
-            elif check.status == "blocked_bot_protection":
+            elif check.status == "blocked_in_current_runtime":
                 run.sources_blocked += 1
             else:
                 run.sources_error += 1
@@ -201,12 +197,12 @@ def _run_single_source(
     check._created_count = 0  # type: ignore[attr-defined]
     check._updated_count = 0  # type: ignore[attr-defined]
 
-    if source.status == "blocked_bot_protection":
-        check.status = "blocked_bot_protection"
+    if source.status == "blocked_in_current_runtime":
+        check.status = "blocked_in_current_runtime"
         check.error_message = source.notes
         check.duration_seconds = time.monotonic() - start_time
         source.last_checked_at = dt.datetime.now(dt.UTC)
-        source.last_status = "blocked_bot_protection"
+        source.last_status = "blocked_in_current_runtime"
         log_lines.append(f"[{source.code}] praleista — bot apsauga (žr. registro pastabas).")
         return check
 
@@ -319,6 +315,10 @@ def _process_item(db, source, item, client, settings, check) -> None:
     content_selector = (source.adapter_config or {}).get("detail_content_selector")
     page = extract_page(html, base_url=base_url, content_selector=content_selector)
     full_text = page.text
+    # Išsaugoma DB (ne tik naudojama šioje eigoje), kad web servisas galėtų rodyti
+    # puslapio tekstą TIK per DB, be priklausomybės nuo worker'io lokalios failų
+    # sistemos (žr. app/storage/object_store.py ir SOURCE_AUDIT.md 4 dalį).
+    previous_page.extracted_text = page.text
     document_urls: list[str] = []
 
     for doc_url in page.document_links[:5]:
@@ -393,6 +393,7 @@ def _process_item(db, source, item, client, settings, check) -> None:
         text=full_text,
         document_urls=document_urls,
         settings=settings,
+        page_text=page.text,
     )
     if result is not None:
         if result.is_new:

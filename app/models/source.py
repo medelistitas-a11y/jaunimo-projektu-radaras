@@ -41,7 +41,14 @@ class Source(TimestampMixin, Base):
     # allowed | disallowed_partial | disallowed_all | unreachable | unknown
 
     status: Mapped[str] = mapped_column(String(40), default="active", index=True)
-    # active | blocked_bot_protection | needs_verification | disabled | error
+    # active | blocked_in_current_runtime | needs_verification | disabled | error
+    #
+    # "blocked_in_current_runtime" reiškia: šaltinis viešai pasiekiamas įprastam
+    # naršyklės vartotojui, bet ŠIOS programos veikimo aplinkoje (dabartinis HTTP
+    # klientas/tinklo kelias) grąžina bot-apsaugos atsakymą. Tai NĖRA "disabled" —
+    # šaltinis lieka registre, periodiškai perbandomas (žr. check_frequency_hours ir
+    # app/crawler/availability_probe.py), ir automatiškai grįžta į "needs_verification",
+    # kai/jei prieiga atsilaisvina.
 
     is_official: Mapped[bool] = mapped_column(Boolean, default=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -50,6 +57,23 @@ class Source(TimestampMixin, Base):
     last_success_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
     last_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Tikslūs diagnostiniai laukai blokuotiems šaltiniams (žr. availability_probe.py) —
+    # kad "Šaltiniai" skydelyje matytųsi ne tik "neveikia", bet TIKSLUS HTTP statusas,
+    # atsakymo tipas ir bot-apsaugos signatūra, kaip prašyta audite.
+    last_probe_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+    last_http_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_response_content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_bot_protection_signature: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    last_playwright_check_status: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    # success | connection_reset | challenge_shown | not_tested_sandbox_limitation | error
+    last_playwright_checked_at: Mapped[dt.datetime | None] = mapped_column(nullable=True)
+
+    # Savireferentinė nuoroda: šis šaltinis yra alternatyvus/susijęs kelias PRIE kito
+    # (paprastai blokuoto) šaltinio — pvz. socmin.lrv.lt susietas su jra.lrv.lt.
+    alternative_source_of_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sources.id"), nullable=True
+    )
 
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -96,7 +120,7 @@ class SourceCheckResult(TimestampMixin, Base):
     source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"))
 
     status: Mapped[str] = mapped_column(String(30))
-    # ok | error | blocked_bot_protection | skipped_not_modified
+    # ok | error | blocked_in_current_runtime | skipped_not_modified
     pages_fetched: Mapped[int] = mapped_column(Integer, default=0)
     pages_unchanged: Mapped[int] = mapped_column(Integer, default=0)
     documents_found: Mapped[int] = mapped_column(Integer, default=0)

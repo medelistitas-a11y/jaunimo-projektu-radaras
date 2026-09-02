@@ -58,7 +58,7 @@ class RobotsCache:
         if parser is None:
             # Nepavyko atsisiųsti arba nėra robots.txt: konservatyviai leidžiame,
             # nebent statusas "unreachable" dėl 401/403 (tikėtina bot apsauga) —
-            # tokiu atveju atsakomybė perkeliama į SourceCheckResult (blocked_bot_protection),
+            # tokiu atveju atsakomybė perkeliama į SourceCheckResult (blocked_in_current_runtime),
             # todėl leidžiam kviesti (užklausą vis tiek atmes bot apsauga pati svetainė).
             return True
         return parser.can_fetch(self.user_agent, url)

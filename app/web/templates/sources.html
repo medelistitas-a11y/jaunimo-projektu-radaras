@@ -16,7 +16,7 @@
       <td>{{ s.official_domain }}</td>
       <td>
         {% if s.status == "active" %}<span class="badge green">veikia</span>
-        {% elif s.status == "blocked_bot_protection" %}<span class="badge red">blokuota (bot apsauga)</span>
+        {% elif s.status == "blocked_in_current_runtime" %}<span class="badge red">blokuota (bot apsauga)</span>
         {% elif s.status == "needs_verification" %}<span class="badge yellow">reikia patikrinti</span>
         {% else %}<span class="badge neutral">{{ s.status }}</span>{% endif %}
       </td>

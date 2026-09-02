@@ -93,6 +93,15 @@ class Opportunity(TimestampMixin, Base):
         back_populates="opportunity", uselist=False, cascade="all, delete-orphan"
     )
 
+    @property
+    def processing_status(self) -> str:
+        """Ar šis įrašas yra tik neapdorotas raktažodžių sutapimas, ar reikia
+        žmogaus peržiūros, ar patikimai patvirtinta galimybė — žr.
+        app/rules/processing_status.py dėl pilno pagrindimo."""
+        from app.rules.processing_status import compute_processing_status
+
+        return compute_processing_status(self)
+
 
 class UserReview(TimestampMixin, Base):
     """Žmogaus žymos ir pastabos apie Opportunity."""

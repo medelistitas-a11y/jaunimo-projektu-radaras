@@ -16,6 +16,13 @@ services:
       timeout: 5s
       retries: 10
 
+  # PASTABA (produkcinis patikimumas): `web` ir `worker` SĄMONINGAI NETURI bendro tomo.
+  # Abu servisai priklauso TIK nuo bendros PostgreSQL DB (ištrauktas dokumentų tekstas,
+  # hash, įrodymai, kontaktai ir vertinimai — visada ten). Originalūs PDF/DOCX failai
+  # arba saugiai pašalinami po ištraukimo (numatyta), arba (jei S3_ENABLED=true) įkeliami
+  # į S3 suderinamą saugyklą — niekada į vietinį diską, bendrinamą tarp servisų.
+  # Žr. app/storage/object_store.py ir tests/test_storage_decoupling.py.
+
   web:
     build: .
     restart: unless-stopped
@@ -28,8 +35,6 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    volumes:
-      - documents_data:/data/documents
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
@@ -43,10 +48,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - documents_data:/data/documents
     command: ["python", "-m", "app.scheduler.run_worker"]
 
 volumes:
   db_data:
-  documents_data:

@@ -85,6 +85,7 @@ class OpportunitySummary(BaseModel):
     total_budget_cents: int | None
     sales_color: str | None
     eligibility_verdict: str | None
+    processing_status: str
     next_action: str | None
     is_read: bool
     first_seen_at: dt.datetime
@@ -120,6 +121,7 @@ class OpportunityDetail(BaseModel):
     last_changed_at: dt.datetime
     last_checked_at: dt.datetime
     possible_duplicate_of_id: int | None
+    processing_status: str
 
     eligibility: EligibilityOut | None
     sales: SalesOut | None
