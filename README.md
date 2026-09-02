@@ -76,10 +76,19 @@ python -m app.scripts.hash_password
 # arba: make admin-password
 ```
 
-Įvestą hash įrašykite į `.env` kaip `ADMIN_PASSWORD_HASH` (ir `ADMIN_USERNAME`, jei norite kitą
-vardą nei `admin`). Autentifikacija reikalinga administravimo veiksmams: žymų keitimui,
-tikrinimo paleidimui. Peržiūra (sąrašas, detalė, CSV) lieka vieša — jei norite ir ją apsaugoti,
-pridėkite reverse-proxy su Basic Auth arba VPN prieš viešindami serverį.
+Komanda atspausdina DVI eilutes — naudokite tą, kuri atitinka jūsų aplinką:
+
+- **`.env` failui (Docker Compose lokaliai)**: `$` ženklai jau padvigubinti į `$$`. Tai
+  BŪTINA — Docker Compose interpoliuoja `$...` `.env` faile taip pat, kaip ir `environment:`
+  reikšmėse, todėl nepadvigubintas bcrypt hash (kuris visada prasideda `$2b$...`) būtų tyliai
+  sugadintas ir autentifikacija niekada neveiktų.
+- **Render / kitai hostingo aplinkos kintamųjų sąsajai**: originalus hash be dvigubinimo (tos
+  sąsajos šios interpoliacijos neatlieka).
+
+Įvestą reikšmę įrašykite kaip `ADMIN_PASSWORD_HASH` (ir `ADMIN_USERNAME`, jei norite kitą vardą
+nei `admin`). Autentifikacija reikalinga administravimo veiksmams: žymų keitimui, tikrinimo
+paleidimui. Peržiūra (sąrašas, detalė, CSV) lieka vieša — jei norite ir ją apsaugoti, pridėkite
+reverse-proxy su Basic Auth arba VPN prieš viešindami serverį.
 
 ## Kasdienis naudojimas (Makefile) {#kasdienis-naudojimas}
 

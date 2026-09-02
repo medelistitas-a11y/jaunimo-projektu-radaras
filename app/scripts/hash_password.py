@@ -19,8 +19,16 @@ def main() -> None:
     if len(password) < 8:
         print("Slaptažodis turi būti bent 8 simbolių.")
         raise SystemExit(1)
-    print("\nĮrašykite šią eilutę į .env failą:\n")
-    print(f"ADMIN_PASSWORD_HASH={hash_password(password)}")
+    raw_hash = hash_password(password)
+    # Docker Compose interpoliuoja "$" ženklus .env faile (taip pat kaip "environment:"
+    # reikšmėse) — todėl kiekvienas "$" turi būti padvigubintas į "$$", kitaip bcrypt hash
+    # bus sugadintas (žr. .env.example komentarą). Render/kitų platformų aplinkos kintamųjų
+    # UI paprastai TOKIOS interpoliacijos nedaro, todėl ten reikia NEPADVIGUBINTO originalo.
+    escaped_hash = raw_hash.replace("$", "$$")
+    print("\n--- .env failui (Docker Compose lokaliai) ---")
+    print(f"ADMIN_PASSWORD_HASH={escaped_hash}")
+    print("\n--- Render / kitos hostingo aplinkos kintamųjų UI (be dvigubinimo) ---")
+    print(f"ADMIN_PASSWORD_HASH={raw_hash}")
 
 
 if __name__ == "__main__":
