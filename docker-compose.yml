@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mostai
+      POSTGRES_PASSWORD: mostai
+      POSTGRES_DB: mostai
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mostai -d mostai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://mostai:mostai@db:5432/mostai
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - documents_data:/data/documents
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://mostai:mostai@db:5432/mostai
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - documents_data:/data/documents
+    command: ["python", "-m", "app.scheduler.run_worker"]
+
+volumes:
+  db_data:
+  documents_data:

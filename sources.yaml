@@ -1,0 +1,220 @@
+# Šaltinių registras. Seedinamas į DB paleidimo metu (app/seed/sources_seed.py),
+# po to redaguojamas per DB/administravimo veiksmus. Visi URL ir statusai čia
+# atitinka realų patikrinimą, aprašytą SOURCE_AUDIT.md (data: 2026-09-02).
+#
+# status reikšmės: active | blocked_bot_protection | needs_verification | disabled
+# source_type: html | rss | sitemap | api | search | js | unknown
+
+sources:
+  - code: jra_finansavimo_konkursai
+    name: "JRA finansavimo konkursai"
+    institution_name: "Jaunimo reikalų agentūra"
+    municipality: null
+    region: null
+    official_domain: jra.lrv.lt
+    start_urls:
+      - https://jra.lrv.lt/lt/finansavimo-konkursai/
+    source_type: html
+    allowed_document_domains: [jra.lrv.lt, lrv.lt]
+    relevant_path_hints: ["finansavimo-konkursai", "konkursai"]
+    ignored_path_hints: []
+    adapter: generic_html
+    adapter_config: {}
+    check_frequency_hours: 24
+    status: blocked_bot_protection
+    is_official: true
+    enabled: false
+    notes: >
+      2026-09-02: HTTP 403, Cloudflare "Just a moment..." JS iššūkis (cf-mitigated: challenge)
+      tiek pačiam puslapiui, tiek /robots.txt. Instrukcijos draudžia apeiti CAPTCHA/JS iššūkius,
+      todėl automatinis crawl išjungtas. UI turi rodyti "Atidaryti originalų puslapį" nuorodą
+      rankinei peržiūrai. Privalomas šaltinis pagal užduotį — statusas bus pertikrinamas
+      kiekvieno etapo metu, jei Cloudflare konfigūracija pasikeis.
+
+  - code: vilnius_konkursai
+    name: "Vilniaus miesto konkursų sistema"
+    institution_name: "Vilniaus miesto savivaldybė"
+    municipality: "Vilniaus m."
+    region: "Vilniaus apskritis"
+    official_domain: vilnius.lt
+    start_urls:
+      - https://konkursai.vilnius.lt/konkursai
+    source_type: unknown
+    allowed_document_domains: [vilnius.lt, konkursai.vilnius.lt]
+    relevant_path_hints: ["jaunim", "konkurs"]
+    ignored_path_hints: []
+    adapter: generic_html
+    adapter_config: {}
+    check_frequency_hours: 24
+    status: blocked_bot_protection
+    is_official: true
+    enabled: false
+    notes: >
+      2026-09-02: HTTP 403, Cloudflare JS iššūkis. Taip pat blokuoja pagrindinį vilnius.lt
+      domeną. Privalomas šaltinis — rankinės peržiūros nuoroda UI.
+
+  - code: kaunas_naujienos
+    name: "Kauno miesto savivaldybės naujienos"
+    institution_name: "Kauno miesto savivaldybė"
+    municipality: "Kauno m."
+    region: "Kauno apskritis"
+    official_domain: kaunas.lt
+    start_urls:
+      - https://www.kaunas.lt/kategorija/naujienos/
+    source_type: html
+    allowed_document_domains: [kaunas.lt]
+    relevant_path_hints: []
+    ignored_path_hints: ["/kategorija/eismo-informacija", "/kategorija/orai"]
+    adapter: generic_html
+    adapter_config:
+      list_item_selector: "article"
+      link_selector: "h3 a, h2 a, a"
+      title_selector: "h3, h2"
+    check_frequency_hours: 24
+    status: active
+    is_official: true
+    enabled: true
+    notes: >
+      2026-09-02: HTTP 200, realus turinys patikrintas. Naudojama vertikaliame pjūvyje kaip
+      "savivaldybė su paprastu HTML naujienų sąrašu".
+
+  - code: skuodas_wp_api
+    name: "Skuodo rajono savivaldybė (WordPress naujienos)"
+    institution_name: "Skuodo rajono savivaldybė"
+    municipality: "Skuodo r."
+    region: "Klaipėdos apskritis"
+    official_domain: skuodas.lt
+    start_urls:
+      - https://skuodas.lt/wp-json/wp/v2/posts
+    source_type: api
+    allowed_document_domains: [skuodas.lt]
+    relevant_path_hints: []
+    ignored_path_hints: []
+    adapter: wp_json
+    adapter_config:
+      search_terms: ["jaunim", "mokym", "prevencij", "konkurs", "kvietim"]
+      per_page: 20
+    check_frequency_hours: 24
+    status: active
+    is_official: true
+    enabled: true
+    notes: >
+      2026-09-02: HTTP 200, /wp-json/wp/v2/posts?search=jaunim patikrinta rankiniu būdu, grąžina
+      realius įrašus. Naudojama vertikaliame pjūvyje kaip "nestandartinis adapteris" (REST API
+      vietoje HTML naršymo).
+
+  - code: ltkt_organizacijoms
+    name: "Lietuvos kultūros taryba – konkursai organizacijoms"
+    institution_name: "Lietuvos kultūros taryba"
+    municipality: null
+    region: null
+    official_domain: ltkt.lt
+    start_urls:
+      - https://www.ltkt.lt/organizacijoms/konkursai
+    source_type: html
+    allowed_document_domains: [ltkt.lt]
+    relevant_path_hints: []
+    ignored_path_hints: []
+    adapter: generic_html
+    adapter_config: {}
+    check_frequency_hours: 48
+    status: active
+    is_official: true
+    enabled: true
+    notes: >
+      2026-09-02: HTTP 200. Antrinis/stebimas šaltinis — LTKT fokusas yra kultūra/menas, ne
+      jaunimas, bet pasitaiko su jaunimu/bendruomeniškumu susijusių krypčių. Raktažodžių filtras
+      turi būti griežtesnis šiam šaltiniui, kad nebūtų triukšmo.
+
+  - code: lietuvos_kulturos_kongresas
+    name: "Lietuvos kultūros kongresas"
+    institution_name: "Lietuvos kultūros kongresas"
+    municipality: null
+    region: null
+    official_domain: ""
+    start_urls: []
+    source_type: unknown
+    allowed_document_domains: []
+    relevant_path_hints: []
+    ignored_path_hints: []
+    adapter: generic_html
+    adapter_config: {}
+    check_frequency_hours: 168
+    status: needs_verification
+    is_official: false
+    enabled: false
+    notes: >
+      Šios sesijos metu nerastas oficialus, nuolat atnaujinamas kvietimų/projektų archyvas su
+      patikimu domenu. Pagal instrukcijas URL negalima išgalvoti. Administratorius turi įrašyti
+      tikrą official_domain/start_urls, jei nustato, kad tai produktyvus šaltinis — kitaip paliekamas
+      neaktyvus.
+
+
+# --- 60 savivaldybių (LSA narių sąrašas, žr. SOURCE_AUDIT.md) ---
+# Tik Kaunas turi pilną adapter_config aukščiau (kaunas_naujienos); likusioms žemiau esantis
+# įrašas registruoja domeną ir tiesioginio HTTP patikrinimo rezultatą, bet NEĮJUNGTAS
+# automatiniam crawl, kol administratorius nepatvirtina konkrečios jaunimo/konkursų skilties
+# URL (net ir "accessible" savivaldybėms — patikrinta tik pagrindinio puslapio pasiekiamumas,
+# ne vidinė struktūra).
+
+municipalities:
+  - { name: "Akmenės r.", domain: akmene.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Alytaus m.", domain: ams.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Alytaus r.", domain: arsa.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Anykščių r.", domain: anyksciai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Birštono", domain: birstonas.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Biržų r.", domain: birzai.lt, http_status: 200, status: needs_verification }
+  - { name: "Druskininkų", domain: druskininkusavivaldybe.lt, http_status: 200, status: needs_verification }
+  - { name: "Elektrėnų", domain: elektrenai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Ignalinos r.", domain: ignalina.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Jonavos r.", domain: jonava.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Joniškio r.", domain: joniskis.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Jurbarko r.", domain: jurbarkas.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Kaišiadorių r.", domain: kaisiadorys.lt, http_status: 200, status: needs_verification }
+  - { name: "Kalvarijos", domain: kalvarija.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Kauno m.", domain: kaunas.lt, http_status: 200, status: active }
+  - { name: "Kauno r.", domain: krs.lt, http_status: 0, status: needs_verification }
+  - { name: "Kazlų Rūdos", domain: kazluruda.lt, http_status: 200, status: needs_verification }
+  - { name: "Kelmės r.", domain: kelme.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Kėdainių r.", domain: kedainiai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Klaipėdos m.", domain: klaipeda.lt, http_status: 200, status: needs_verification }
+  - { name: "Klaipėdos r.", domain: klaipedos-r.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Kretingos r.", domain: kretinga.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Kupiškio r.", domain: kupiskis.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Lazdijų r.", domain: lazdijai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Marijampolės", domain: marijampole.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Mažeikių r.", domain: mazeikiai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Molėtų r.", domain: moletai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Neringos", domain: neringa.lt, http_status: 200, status: needs_verification }
+  - { name: "Pagėgių", domain: pagegiai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Pakruojo r.", domain: pakruojis.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Palangos m.", domain: palanga.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Panevėžio m.", domain: panevezys.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Panevėžio r.", domain: panrs.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Pasvalio r.", domain: pasvalys.lt, http_status: 200, status: needs_verification }
+  - { name: "Plungės r.", domain: plunge.lt, http_status: 200, status: needs_verification }
+  - { name: "Prienų r.", domain: prienai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Radviliškio r.", domain: radviliskis.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Raseinių r.", domain: raseiniai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Rietavo", domain: rietavas.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Rokiškio r.", domain: rokiskis.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Skuodo r.", domain: skuodas.lt, http_status: 200, status: active }
+  - { name: "Šakių r.", domain: sakiai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Šalčininkų r.", domain: salcininkai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Šiaulių m.", domain: siauliai.lt, http_status: 200, status: needs_verification }
+  - { name: "Šiaulių r.", domain: siauliuraj.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Šilalės r.", domain: silale.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Šilutės r.", domain: silute.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Širvintų r.", domain: sirvintos.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Švenčionių r.", domain: svencionys.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Tauragės r.", domain: taurage.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Telšių r.", domain: telsiai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Trakų r.", domain: trakai.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Ukmergės r.", domain: ukmerge.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Utenos r.", domain: utena.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Varėnos r.", domain: varena.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Vilkaviškio r.", domain: vilkaviskis.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Vilniaus m.", domain: vilnius.lt, http_status: 403, status: blocked_bot_protection }
+  - { name: "Vilniaus r.", domain: vilniaus-r.lt, http_status: 0, status: needs_verification }
+  - { name: "Visagino m.", domain: visaginas.lt, http_status: 200, status: needs_verification }
+  - { name: "Zarasų r.", domain: zarasai.lt, http_status: 403, status: blocked_bot_protection }

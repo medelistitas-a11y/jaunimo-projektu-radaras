@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+data/
+storage/
+*.db
+*.sqlite3
+.DS_Store
+node_modules/
+backups/*.sql.gz
