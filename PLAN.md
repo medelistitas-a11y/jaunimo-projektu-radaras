@@ -116,6 +116,24 @@ Vieno šaltinio klaida (`try/except` per šaltinį `runner.py` viduje) tik pažy
 | SSRF per dokumentų/nuorodų atsisiuntimą. | Saugumo pažeidimas. | `ssrf_guard.py` leidžia tik registre nurodytus domenus/subdomenus, blokuoja privačius IP po DNS rezoliucijos, tikrina MIME + failo parašą, riboja dydį. |
 | Vienas serveris kasdieniam scrape (APScheduler) nesuderinamas su keliais web replikomis. | Dvigubas paleidimas. | PostgreSQL advisory lock (`pg_try_advisory_lock`) prieš pradedant `CrawlRun`; jei užimta — praleidžiama, log. |
 
+## 6a. Įgyvendinimo būsena (atnaujinta po pilno paleidimo)
+
+Visi 12 etapų iš 6-o skyriaus įgyvendinti ir patikrinti realiais veiksmais (ne tik kodo
+peržiūra):
+
+- `docker compose up --build -d` realiai paleistas šioje aplinkoje prieš tikrą PostgreSQL —
+  migracijos, web servisas (FastAPI) ir worker servisas (APScheduler, Europe/Vilnius) paleidžia
+  sėkmingai.
+- Rankinis tikrinimas paleistas prieš REALIUS kaunas.lt ir skuodas.lt — surinkta 60 realių
+  galimybių, su realiais A/B vertinimais, kontaktais, biudžetais, terminais.
+- Šio bandymo metu rasti ir ištaisyti DU realūs klaidos atvejai (ne hipotetiniai): (1) pinigų
+  parseris nesutvarkydavo standartinio "neskaidomo tarpo" (\xa0) tūkstančių skirtuko iš tikro
+  HTML; (2) `crawl_runs.status` PostgreSQL stulpelis buvo per trumpas
+  ("completed_with_errors" > VARCHAR(20)) — SQLite testai šios klaidos nematė, nes SQLite
+  netikrina VARCHAR ilgio. Abu ištaisyti, pridėtos atitinkamos migracijos/testai.
+- 55 pytest testai praeina + 1 praleidžiamas (Playwright, jei nėra Chromium binarinio failo).
+- `ruff check` ir `ruff format --check` be klaidų.
+
 ## 6. Darbo etapai ir priėmimo kriterijai
 
 Sekama pagal užduoties 12 etapų. Kiekvienam etapui priėmimo kriterijus:

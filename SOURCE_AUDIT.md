@@ -127,6 +127,23 @@ blokavimas).** Šis skaičius rodomas programos „Šaltiniai“ vaizde tiksliai
 
 - `ltkt.lt/organizacijoms` — HTTP 200, pridėta registre kaip antrinis/stebimas šaltinis (žr. lentelę aukščiau).
 
+## Realaus paleidimo rezultatai (2026-09-02, ta pati sesija)
+
+Po vertikalaus pjūvio įgyvendinimo paleistas TIKRAS `POST /api/crawl/run` (per lokaliai
+paleistą `uvicorn`, ne mock) prieš realius `kaunas_naujienos` ir `skuodas_wp_api` šaltinius:
+
+- Rezultatas: `{"status":"completed","new":60}` — **60 realių galimybių**, be klaidų.
+- Pasiskirstymas pagal pardavimo spalvą tame paleidime: 8 žalios, 52 geltonos, 0 raudonų (visos
+  60 praėjo pirminį raktažodžių filtrą, tad tikėtina, jog "not_relevant" raudonos priežastis
+  paprasčiausiai nepasitaikė šiame konkrečiame naujienų sraute; "deadline_passed" raudonos
+  pavyzdžių šiame paleidime taip pat nebuvo, nes dauguma naujienų buvo neseniai paskelbtos).
+- CSV eksportas patikrintas: UTF-8 BOM + lietuviški simboliai atsidaro korektiškai.
+- Šio bandymo metu rasti ir ištaisyti du realūs kodo trūkumai (pinigų normalizavimas su
+  neskaidomu tarpu; per trumpas `crawl_runs.status` PostgreSQL stulpelis) — abu aprašyti
+  `PLAN.md` 6a skyriuje ir atitinkamuose git commit'uose.
+- `docker compose up --build` realiai paleistas prieš tikrą PostgreSQL (ne tik SQLite testuose)
+  — migracijos, web ir worker servisai pasileido be klaidų.
+
 ## Atnaujinimo tvarka
 
 Šis failas turi būti atnaujinamas po kiekvieno reikšmingo šaltinių registro pakeitimo arba bent

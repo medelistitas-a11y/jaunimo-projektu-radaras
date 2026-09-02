@@ -20,18 +20,21 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.alter_column(
-        "crawl_runs",
-        "status",
-        existing_type=sa.String(length=20),
-        type_=sa.String(length=40),
-    )
+    # `batch_alter_table` naudojamas, kad migracija veiktų tiek PostgreSQL (produkcija/Docker),
+    # tiek SQLite (testai/lengvas lokalus paleidimas be Docker) — paprastas `op.alter_column`
+    # generuoja `ALTER COLUMN ... TYPE ...`, kurio SQLite nepalaiko.
+    with op.batch_alter_table("crawl_runs") as batch_op:
+        batch_op.alter_column(
+            "status",
+            existing_type=sa.String(length=20),
+            type_=sa.String(length=40),
+        )
 
 
 def downgrade() -> None:
-    op.alter_column(
-        "crawl_runs",
-        "status",
-        existing_type=sa.String(length=40),
-        type_=sa.String(length=20),
-    )
+    with op.batch_alter_table("crawl_runs") as batch_op:
+        batch_op.alter_column(
+            "status",
+            existing_type=sa.String(length=40),
+            type_=sa.String(length=20),
+        )
