@@ -332,20 +332,36 @@ def _process_item(db, source, item, client, settings, check) -> None:
             continue
         if not doc_result.content:
             continue
-        doc_text, extraction_method, needs_review = _extract_document_text(
-            doc_url, doc_result.content, settings
-        )
         document_urls.append(doc_url)
         check.documents_found += 1
-        if doc_text:
-            full_text += "\n\n" + doc_text
 
         import hashlib
 
         doc_hash = hashlib.sha256(doc_result.content).hexdigest()
-        storage_path = _persist_original(
-            doc_result.content, doc_hash, _document_type(doc_url), settings
+
+        existing_doc = (
+            db.query(Document)
+            .filter(Document.content_hash == doc_hash, Document.extraction_status == "ok")
+            .first()
         )
+        if existing_doc is not None:
+            # Tas pats dokumentas (pagal turinio hash) jau sėkmingai ištrauktas anksčiau —
+            # NEKVIEČIAME _extract_document_text (potencialiai brangus OCR/tekstinis
+            # parsavimas) iš naujo, naudojame jau turimą rezultatą.
+            doc_text = existing_doc.extracted_text
+            extraction_method = existing_doc.extraction_method
+            needs_review = existing_doc.needs_human_review
+            storage_path = existing_doc.storage_path
+        else:
+            doc_text, extraction_method, needs_review = _extract_document_text(
+                doc_url, doc_result.content, settings
+            )
+            storage_path = _persist_original(
+                doc_result.content, doc_hash, _document_type(doc_url), settings
+            )
+
+        if doc_text:
+            full_text += "\n\n" + doc_text
 
         db.add(
             Document(
@@ -363,6 +379,10 @@ def _process_item(db, source, item, client, settings, check) -> None:
                 needs_human_review=needs_review,
             )
         )
+        # Flush (ne commit) iš karto — kad TOS PAČIOS CrawlRun eigoje kitas puslapis,
+        # nurodantis į tą patį dokumentą (pagal content_hash), jį rastų aukščiau esančioje
+        # užklausoje net jei sesija sukonfigūruota su autoflush=False (žr. app/db.py).
+        db.flush()
 
     result = process_candidate(
         db=db,
