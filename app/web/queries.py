@@ -41,7 +41,12 @@ def apply_filters(
     if status:
         query = query.filter(Opportunity.status == status)
     if eligibility:
-        query = (query.join(EligibilityAssessment) if color is None else query).filter(
+        # Visada JOIN'inti EligibilityAssessment čia, nepriklausomai nuo to, ar `color`
+        # jau prijungė SalesAssessment — tai skirtinga lentelė. Anksčiau čia buvo klaidinga
+        # sąlyga, praleisdavusi JOIN, kai `color` nustatytas, o tai sukeldavo Dekarto
+        # sandaugą (SQLAlchemy SAWarning) tarp Opportunity ir EligibilityAssessment bei
+        # galimai neteisingus rezultatus, kai DB turi kelis įrašus.
+        query = query.join(EligibilityAssessment).filter(
             EligibilityAssessment.verdict == eligibility
         )
     if deadline_before:
