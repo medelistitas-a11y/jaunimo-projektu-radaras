@@ -31,7 +31,14 @@ def content_hash(text: str) -> str:
 
 
 def _clean_soup(soup: BeautifulSoup) -> None:
-    for tag in soup(["script", "style", "noscript", "iframe", "svg"]):
+    # nav/header/footer/aside pašalinami, kad svetainių meniu (dažnai dešimtys nuorodų su
+    # bendriniais žodžiais kaip "projektai", "prevencija", "partneriai") nebūtų klaidingai
+    # laikomi straipsnio turiniu — realus rastas atvejis: kaunas.lt puslapiuose nėra <main>,
+    # todėl be šio filtro visas <body> (įskaitant pilną meniu) patekdavo į ištrauktą tekstą,
+    # sugadindamas ir aktualumo raktažodžių filtrą, ir citatų paiešką.
+    for tag in soup(
+        ["script", "style", "noscript", "iframe", "svg", "nav", "header", "footer", "aside"]
+    ):
         tag.decompose()
 
 
@@ -83,15 +90,26 @@ def _block_text(container) -> str:
     return "\n".join(lines)
 
 
-def extract_page(html: str, base_url: str) -> ExtractedPage:
-    """Ištraukia pagrindinį teksto turinį iš detalės/naujienos puslapio."""
+def extract_page(html: str, base_url: str, content_selector: str | None = None) -> ExtractedPage:
+    """Ištraukia pagrindinį teksto turinį iš detalės/naujienos puslapio.
+
+    `content_selector` — pasirenkamas CSS selektorius konkrečiam šaltiniui
+    (Source.adapter_config["detail_content_selector"]), leidžiantis tiksliai
+    apriboti straipsnio kūno konteinerį svetainėms, kuriose <main>/<article>
+    žymos nenaudojamos arba apima per daug šalutinio turinio (meniu, šoninės
+    juostos). Be jo naudojama bendra heuristika.
+    """
     soup = BeautifulSoup(html, "lxml")
     _clean_soup(soup)
 
     title_tag = soup.find(["h1", "title"])
     title = title_tag.get_text(strip=True) if title_tag else None
 
-    main = soup.find("main") or soup.find("article") or soup.body or soup
+    main = None
+    if content_selector:
+        main = soup.select_one(content_selector)
+    if main is None:
+        main = soup.find("main") or soup.find("article") or soup.body or soup
     text = _block_text(main) if main else ""
 
     doc_links: list[str] = []

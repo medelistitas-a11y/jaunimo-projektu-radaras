@@ -124,14 +124,28 @@ peržiūra):
 - `docker compose up --build -d` realiai paleistas šioje aplinkoje prieš tikrą PostgreSQL —
   migracijos, web servisas (FastAPI) ir worker servisas (APScheduler, Europe/Vilnius) paleidžia
   sėkmingai.
-- Rankinis tikrinimas paleistas prieš REALIUS kaunas.lt ir skuodas.lt — surinkta 60 realių
-  galimybių, su realiais A/B vertinimais, kontaktais, biudžetais, terminais.
-- Šio bandymo metu rasti ir ištaisyti DU realūs klaidos atvejai (ne hipotetiniai): (1) pinigų
-  parseris nesutvarkydavo standartinio "neskaidomo tarpo" (\xa0) tūkstančių skirtuko iš tikro
-  HTML; (2) `crawl_runs.status` PostgreSQL stulpelis buvo per trumpas
-  ("completed_with_errors" > VARCHAR(20)) — SQLite testai šios klaidos nematė, nes SQLite
-  netikrina VARCHAR ilgio. Abu ištaisyti, pridėtos atitinkamos migracijos/testai.
-- 55 pytest testai praeina + 1 praleidžiamas (Playwright, jei nėra Chromium binarinio failo).
+- Rankinis tikrinimas paleistas DAUG KARTŲ prieš REALIUS kaunas.lt ir skuodas.lt per visą šį
+  etapą — galutiniame paleidime surinkta 65 realios galimybės iš abiejų šaltinių (2/2 šaltiniai
+  be klaidų, 9 nauji pranešimai), su realiais A/B vertinimais, kontaktais, biudžetais, terminais.
+  Pirmas bandymas ("60 galimybių") pasirodė esąs klaidingas — beveik visos jos buvo iš
+  skuodas.lt, nes kaunas.lt adapterio selektorius buvo spėtas, ne patikrintas; žr. SOURCE_AUDIT.md
+  „Realaus paleidimo rezultatai“ dėl pilnos, sąžiningos šio radinio ir taisymo istorijos.
+- Šio (pratęsto) galutinio patikrinimo etapo metu rasta ir ištaisyta SEPTYNI realūs klaidos
+  atvejai (ne hipotetiniai, kiekvienas su atskiru testu, apsaugančiu nuo regresijos):
+  1. pinigų parseris nesutvarkydavo standartinio "neskaidomo tarpo" (\xa0) tūkstančių skirtuko;
+  2. `crawl_runs.status` PostgreSQL stulpelis buvo per trumpas ("completed_with_errors" >
+     VARCHAR(20)) — SQLite to nematė, nes netikrina VARCHAR ilgio;
+  3. `passlib`+`bcrypt>=4.1` nesuderinamumas visiškai sugadindavo slaptažodžio hash generavimą;
+  4. Docker Compose interpoliuoja "$" ženklus .env faile — bcrypt hash (visada prasideda "$2b$")
+     būdavo sugadinamas, kol nepridėtas "$$" dvigubinimas;
+  5. `color`+`eligibility` filtrų derinys sukeldavo Dekarto sandaugą (klaidingus rezultatus
+     turint kelis įrašus), nes JOIN buvo praleidžiamas, kai `color` jau nustatytas;
+  6. dokumento (PDF/DOCX) ekstrakcija/OCR būdavo vykdoma PRIEŠ dedup-pagal-hash patikrą, taigi
+     patikra niekada realiai neišvengdavo pakartotinio darbo;
+  7. kaunas_naujienos adapterio selektorius buvo spėtas (ne patikrintas) ir neatitiko realios
+     svetainės struktūros; papildomai `extract_page` neturėjo apsaugos nuo `<nav>/<header>
+     /<footer>/<aside>` turinio patekimo į "straipsnio tekstą", kai `<main>` žymos nėra.
+- 88 pytest testai praeina + 1 praleidžiamas (Playwright, jei nėra Chromium binarinio failo).
 - `ruff check` ir `ruff format --check` be klaidų.
 
 ## 6. Darbo etapai ir priėmimo kriterijai

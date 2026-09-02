@@ -61,6 +61,32 @@ POSITIVE_STEMS: list[str] = [
     "pirkim",
 ]
 
+# Bendri/administraciniai žodžiai (konkurs*, kvietim*, finansavim*, projekt*, program*,
+# pirkim*, partner*, bendruomen*, ekspert*, lektor*, savanor*, veiklų vykdytoj*,
+# paslaugų teikėj*) yra privalomi pagal užduoties raktažodžių sąrašą, BET pasitaiko
+# beveik KIEKVIENAME savivaldybės naujienų sraute (pvz. straipsniuose apie
+# infrastruktūros projektus, viešuosius pirkimus, kultūros renginius), taigi vieno
+# tokio žodžio PAKAKTI negali, kad tekstas būtų laikomas aktualiu (žr. instrukcijos
+# "kontekstas svarbiau už raktažodžių skaičių"). `is_relevant_candidate` todėl reikalauja
+# arba bent vieno signalo iš siauresnio, jaunimo/mokymų temai specifinio poaibio, arba
+# kelių bendrų signalų kartu — o ne vien atsitiktinio bendro žodžio.
+_GENERIC_ADMINISTRATIVE_STEMS: set[str] = {
+    "konkurs",
+    "kvietim",
+    "finansavim",
+    "projekt",
+    "program",
+    "pirkim",
+    "partner",
+    "bendruomen",
+    "ekspert",
+    "lektor",
+    "savanor",
+    "veiklų vykdytoj",
+    "paslaugų teikėj",
+    "įtraukt",
+}
+
 NEGATIVE_HINTS: list[str] = [
     "infrastruktūros statyb",
     "kelio remont",
@@ -92,7 +118,16 @@ def find_negative_signals(text: str) -> list[str]:
     return [stem for stem, pattern in _NEGATIVE_PATTERNS if pattern.search(text)]
 
 
-def is_relevant_candidate(text: str, min_positive_signals: int = 1) -> bool:
-    """Greitas pirminis filtras: ar tekstą apskritai verta toliau apdoroti."""
+def is_relevant_candidate(text: str, min_generic_only_signals: int = 3) -> bool:
+    """Greitas pirminis filtras: ar tekstą apskritai verta toliau apdoroti.
+
+    Vieno specifinio (ne vien administracinio) signalo pakanka. Vien bendrų/
+    administracinių žodžių (žr. `_GENERIC_ADMINISTRATIVE_STEMS`) reikia bent
+    `min_generic_only_signals`, kad sumažintume klaidingų teigiamų atvejų
+    (pvz. bendrų savivaldybės naujienų apie infrastruktūros pirkimus).
+    """
     positives = find_positive_signals(text)
-    return len(positives) >= min_positive_signals
+    specific = [p for p in positives if p not in _GENERIC_ADMINISTRATIVE_STEMS]
+    if specific:
+        return True
+    return len(positives) >= min_generic_only_signals

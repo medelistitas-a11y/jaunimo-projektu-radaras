@@ -118,7 +118,7 @@ blokavimas).** Šis skaičius rodomas programos „Šaltiniai“ vaizde tiksliai
 |---|---|---|---|
 | JRA finansavimo konkursai + 1 dokumentas | jra.lrv.lt/lt/finansavimo-konkursai/ | — | **blocked_bot_protection**, registruota, rankinės peržiūros nuoroda. Dokumento pavyzdys pakeistas sintetiniu PDF fixture testams (žr. žemiau). |
 | Vilniaus konkursų sistema | konkursai.vilnius.lt/konkursai | — | **blocked_bot_protection**, registruota, rankinės peržiūros nuoroda. |
-| Savivaldybė su paprastu HTML naujienų sąrašu | **kaunas.lt** — https://www.kaunas.lt/kategorija/naujienos/ | `generic_html` | **veikia**, realus HTTP 200, realus turinys. |
+| Savivaldybė su paprastu HTML naujienų sąrašu | **kaunas.lt** — https://www.kaunas.lt/kategorija/naujienos/ | `generic_html` | **veikia**, realus HTTP 200, realus turinys. Selektoriai (`list_item_selector: .content_block.box_inner`, `link_selector: .content_title a`, `detail_content_selector: .content_block.box_inner`) nustatyti ir patikrinti prieš tikrą HTML 2026-09-02 po pradinio klaidingo `article` spėjimo — žr. „Realaus paleidimo rezultatai“ skyrių žemiau. |
 | Savivaldybė su JS/nestandartiniu adapteriu | **skuodas.lt** — https://skuodas.lt/wp-json/wp/v2/posts | `wp_json` | **veikia**, realus HTTP 200, realus JSON turinys (patikrinta `?search=jaunim` paieška). Pasirinkta vietoj tikro JS-SPA atvejo, nes patikrinus visus 12 pasiekiamų savivaldybių svetainių, nė viena nėra kliento pusėje (React/Vue/Nuxt) generuojama SPA — visos yra serverio pusės CMS (dažniausiai WordPress arba panašus). `js_playwright.py` adapteris VIS TIEK įgyvendintas ir padengtas testu su vietiniu sintetiniu JS puslapiu (žr. `tests/fixtures/js_rendered.html` + `tests/test_js_adapter.py`), kad architektūra būtų paruošta realiam JS atvejui, jei toks atsirastų ateityje kitose (ne savivaldybių) svetainėse. |
 | 1 PDF + 1 DOCX | Sintetiniai testiniai failai `tests/fixtures/sample.pdf`, `tests/fixtures/sample.docx`, `tests/fixtures/scanned_no_text.pdf` | `pdf_extract`, `docx_extract`, `ocr` | Sukurti šios sesijos metu, jokių realių organizacijų duomenų. Realaus gyvo PDF/DOCX atsisiuntimas priklauso nuo crawl rezultatų kaunas.lt/skuodas.lt — kodas tai palaiko bendrai (bet kuris rastas PDF/DOCX bus apdorotas ta pačia funkcija). |
 | Atvejis, kai MB negali būti pareiškėja, bet gali būti mokymų tiekėja | Sintetinis fixture `tests/fixtures/vsi_only_call.html` (imituoja tipinį kvietimą „paraiškas gali teikti tik VšĮ, asociacijos ar biudžetinės įstaigos“) | taisyklių variklis | Testas `test_rules_eligibility.py::test_mb_cannot_apply_but_can_be_vendor`. |
@@ -132,17 +132,44 @@ blokavimas).** Šis skaičius rodomas programos „Šaltiniai“ vaizde tiksliai
 Po vertikalaus pjūvio įgyvendinimo paleistas TIKRAS `POST /api/crawl/run` (per lokaliai
 paleistą `uvicorn`, ne mock) prieš realius `kaunas_naujienos` ir `skuodas_wp_api` šaltinius:
 
-- Rezultatas: `{"status":"completed","new":60}` — **60 realių galimybių**, be klaidų.
-- Pasiskirstymas pagal pardavimo spalvą tame paleidime: 8 žalios, 52 geltonos, 0 raudonų (visos
-  60 praėjo pirminį raktažodžių filtrą, tad tikėtina, jog "not_relevant" raudonos priežastis
-  paprasčiausiai nepasitaikė šiame konkrečiame naujienų sraute; "deadline_passed" raudonos
-  pavyzdžių šiame paleidime taip pat nebuvo, nes dauguma naujienų buvo neseniai paskelbtos).
+- Pirmas bandymas: `{"status":"completed","new":60}` — atrodė sėkmingai, BET vėlesnė patikra
+  (žr. žemiau) atskleidė, kad `kaunas_naujienos` adapterio `list_item_selector: "article"`
+  buvo spėtas, o ne patikrintas prieš realų HTML, ir kaunas.lt apskritai neturi `<article>`
+  žymų — adapteris arba grąžindavo 0 elementų, arba (dažniau) vieną klaidingą "elementą" iš
+  viso puslapio meniu teksto. Faktiškai beveik visos tuo metu užfiksuotos 60 galimybių buvo
+  iš `skuodas_wp_api`.
+- **Taisymas**: rastas realus kaunas.lt naujienų kortelių selektorius (`.content_block.box_inner`
+  su nuoroda `.content_title a`), patikrinus tikrą atsisiųstą HTML. Papildomai rasta ir ištaisyta:
+  (a) `extract_page` neturėjo `<main>` atsarginio varianto apsaugos nuo `<nav>/<header>/<footer>
+  /<aside>` turinio — be `<main>` žymos (kaip kaunas.lt atveju) visas svetainės meniu patekdavo
+  į "straipsnio tekstą", klaidindamas raktažodžių filtrą (pvz. meniu punktas "Korupcijos
+  prevencija" duodavo klaidingą "prevenc" signalą); (b) pridėtas `detail_content_selector`
+  adapter_config laukas tiksliam turinio apribojimui; (c) vieno bendro/administracinio
+  raktažodžio (pvz. vien "projektas" ar "partneris") nebepakanka aktualumo filtrui — reikia arba
+  bent vieno specifinio (jaunimo/mokymų temos) signalo, arba kelių bendrų signalų kartu, nes
+  realiame sraute administraciniai žodžiai pasitaiko beveik kiekviename straipsnyje.
+- **Po taisymo, pakartotinis pilnas paleidimas**: `{"status":"completed","new":65}` (2 šaltiniai,
+  0 klaidų, 9 nauji pranešimai). Pasiskirstymas: 8 žalios, 57 geltonos, 0 raudonų šiame konkrečiame
+  paleidime. kaunas_naujienos šįkart teisingai grąžino 6 realius naujienos straipsnius (patikrinta
+  rankiniu būdu, palyginus su faktiniu svetainės turiniu) — vienas iš jų (apie darželio atidarymą)
+  liko pažymėtas aktualiu dėl teisėto "vaik*" signalo, likusieji filtruoti teisingai.
+- **Sąžininga pastaba dėl raktažodžių filtro ribų**: net po taisymo, kai kurie straipsniai
+  (pvz. interviu su grindų meistru, kuriame paminėtas "pedagogas") vis dar praeina filtrą dėl
+  homonimų/atsitiktinių paminėjimų — tai grynai raktažodžių-kamienų metodo riba, ne šio konkretaus
+  paleidimo klaida; sistema tokius atvejus pažymi žema pasitikėjimo geltona spalva žmogaus
+  peržiūrai, niekada TAIP/NE be citatos. Pilnas NLP kontekstinis supratimas priklauso nuo
+  pasirenkamo LLM klasifikatoriaus (žr. app/llm/), kuris NĖRA privalomas MVP veikimui.
 - CSV eksportas patikrintas: UTF-8 BOM + lietuviški simboliai atsidaro korektiškai.
-- Šio bandymo metu rasti ir ištaisyti du realūs kodo trūkumai (pinigų normalizavimas su
-  neskaidomu tarpu; per trumpas `crawl_runs.status` PostgreSQL stulpelis) — abu aprašyti
-  `PLAN.md` 6a skyriuje ir atitinkamuose git commit'uose.
-- `docker compose up --build` realiai paleistas prieš tikrą PostgreSQL (ne tik SQLite testuose)
-  — migracijos, web ir worker servisai pasileido be klaidų.
+- Iš viso šio galutinio patikrinimo etapo metu rasta ir ištaisyta septyni realūs kodo trūkumai
+  (pinigų normalizavimas su neskaidomu tarpu; per trumpas `crawl_runs.status` PostgreSQL
+  stulpelis; sugadinta bcrypt hash dėl Docker Compose `$` interpoliacijos; Dekarto sandaugos
+  klaida `color`+`eligibility` filtrų derinyje; dokumento ekstrakcija vykdavo PRIEŠ dedup
+  patikrą; neteisingas kaunas.lt adapterio selektorius; trūkstamas `<nav>` turinio filtras) —
+  visi aprašyti `PLAN.md` 6a skyriuje ir atitinkamuose git commit'uose.
+- `docker compose up --build` realiai paleistas DU KARTUS prieš tikrą PostgreSQL (ne tik SQLite
+  testuose) — migracijos (0001+0002), web ir worker servisai pasileido be klaidų; taip pat
+  patikrinta pilna autentifikacijos eiga (401/401/200 be kredencialų, su neteisingais, su
+  teisingais).
 
 ## Atnaujinimo tvarka
 

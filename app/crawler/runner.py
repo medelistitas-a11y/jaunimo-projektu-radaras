@@ -316,7 +316,8 @@ def _process_item(db, source, item, client, settings, check) -> None:
     previous_page.last_modified = last_modified
     previous_page.title = item.title[:500]
 
-    page = extract_page(html, base_url=base_url)
+    content_selector = (source.adapter_config or {}).get("detail_content_selector")
+    page = extract_page(html, base_url=base_url, content_selector=content_selector)
     full_text = page.text
     document_urls: list[str] = []
 

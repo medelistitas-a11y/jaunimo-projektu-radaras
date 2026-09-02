@@ -27,3 +27,36 @@ def test_scripts_and_styles_removed():
     page = extract_page(html, base_url="https://x.lt/")
     assert "evil" not in page.text
     assert "Tekstas" in page.text
+
+
+def test_nav_header_footer_aside_excluded_from_extracted_text():
+    """Regresija: svetainės be <main> žymos (realus atvejis - kaunas.lt) be šio
+    filtro grąžindavo VISĄ svetainės meniu kaip straipsnio tekstą, sugadindami
+    aktualumo raktažodžių filtrą (žr. git istoriją, sources.yaml pastabas).
+    """
+    html = (
+        "<html><body>"
+        "<nav><a href='/a'>Projektai</a><a href='/b'>Konkursai</a><a href='/c'>Partneriai</a></nav>"
+        "<header><p>Antraštės meniu turinys</p></header>"
+        "<main><h1>Tikras straipsnis</h1><p>Realus straipsnio turinys apie miesto šventę.</p></main>"
+        "<footer><p>Pėdinės nuorodos ir kontaktai</p></footer>"
+        "</body></html>"
+    )
+    page = extract_page(html, base_url="https://x.lt/naujiena/1")
+    assert "Realus straipsnio turinys" in page.text
+    assert "Projektai" not in page.text
+    assert "Konkursai" not in page.text
+    assert "Antraštės meniu" not in page.text
+    assert "Pėdinės nuorodos" not in page.text
+
+
+def test_content_selector_overrides_default_heuristic():
+    html = (
+        "<html><body>"
+        "<div class='sidebar'><p>Šalutinis turinys, kurio nenorime</p></div>"
+        "<div class='article-body'><h1>Antraštė</h1><p>Tikras straipsnio tekstas.</p></div>"
+        "</body></html>"
+    )
+    page = extract_page(html, base_url="https://x.lt/naujiena/1", content_selector=".article-body")
+    assert "Tikras straipsnio tekstas" in page.text
+    assert "Šalutinis turinys" not in page.text

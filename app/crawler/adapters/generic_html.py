@@ -38,9 +38,12 @@ def discover_items(
         for li in list_items:
             if li.url in seen_urls:
                 continue
-            host = urlparse(li.url).hostname or ""
-            if not domain_matches(host, source.official_domain):
+            parsed = urlparse(li.url)
+            if not domain_matches(parsed.hostname or "", source.official_domain):
                 continue  # nuoroda į kitą domeną (reklama, socialiniai tinklai ir pan.)
+            if parsed.path in ("", "/"):
+                continue  # nuoroda į patį domeno pradžios puslapį (pvz. "Pradžia" trupinių
+                # juostoje ar logotipo nuoroda), o ne konkretų straipsnį/kvietimą.
             if source.ignored_path_hints and any(
                 hint in li.url for hint in source.ignored_path_hints
             ):
