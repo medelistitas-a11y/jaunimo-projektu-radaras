@@ -69,7 +69,7 @@ class CrawlRun(TimestampMixin, Base):
     trigger: Mapped[str] = mapped_column(String(20), default="manual")  # manual | scheduled
     scope: Mapped[str] = mapped_column(String(20), default="all")  # all | single_source
     source_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="running")
+    status: Mapped[str] = mapped_column(String(40), default="running")
     # running | completed | completed_with_errors | failed
 
     sources_total: Mapped[int] = mapped_column(Integer, default=0)

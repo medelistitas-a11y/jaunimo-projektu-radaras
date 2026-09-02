@@ -140,7 +140,32 @@ def run_crawl(
     finally:
         run.finished_at = dt.datetime.now(dt.UTC)
         run.log = "\n".join(log_lines)[:20000]
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            # Jei net baigiamasis commit nepavyksta (pvz. netikėta DB klaida), NIEKADA
+            # nepalikime CrawlRun įrašo su status="running" amžinai — kitaip
+            # `run_crawl` sekantis kvietimas visada gautų RuntimeError dėl "jau vyksta"
+            # ir programa liktų užstrigusi. Atšaukiame ir priverstinai užrašome "failed"
+            # tiesiogine SQL komanda, apeinant ORM būseną.
+            logger.exception(
+                "Nepavyko įrašyti CrawlRun #%s baigiamosios būsenos — žymima 'failed'.", run.id
+            )
+            db.rollback()
+            try:
+                from sqlalchemy import text
+
+                db.execute(
+                    text(
+                        "UPDATE crawl_runs SET status='failed', finished_at=:finished_at "
+                        "WHERE id=:id"
+                    ),
+                    {"finished_at": dt.datetime.now(dt.UTC), "id": run.id},
+                )
+                db.commit()
+            except Exception:
+                logger.exception("Nepavyko net priverstinai pažymėti CrawlRun #%s.", run.id)
+                db.rollback()
         _release_advisory_lock(db)
 
     return run
