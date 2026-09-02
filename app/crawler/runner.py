@@ -371,6 +371,7 @@ def _process_item(db, source, item, client, settings, check) -> None:
         url=item.url,
         text=full_text,
         document_urls=document_urls,
+        settings=settings,
     )
     if result is not None:
         if result.is_new:

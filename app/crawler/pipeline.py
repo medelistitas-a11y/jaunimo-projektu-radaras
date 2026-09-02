@@ -17,12 +17,14 @@ import re
 
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.crawler.dedupe import (
     canonicalize_url,
     find_by_canonical_url,
     find_fuzzy_duplicate,
     make_canonical_key,
 )
+from app.llm.classifier import classify_eligibility
 from app.models.assessment import ChangeEvent, EligibilityAssessment, Evidence, SalesAssessment
 from app.models.opportunity import Opportunity
 from app.models.organization import Contact
@@ -157,6 +159,7 @@ def process_candidate(
     text: str,
     document_urls: list[str],
     now: dt.datetime | None = None,
+    settings: Settings | None = None,
 ) -> ProcessResult | None:
     now = now or dt.datetime.now(dt.UTC)
     today = now.date()
@@ -251,6 +254,13 @@ def process_candidate(
 
     # --- Vertinimai (visada perskaičiuojami, kad atspindėtų naujausią tekstą) ---
     elig = assess_eligibility(text, source_url=url)
+    if elig.verdict == "neaisku" and settings is not None and settings.llm_configured:
+        # Taisyklių variklis nerado aiškaus atsakymo — pasirenkamas LLM klasifikatorius
+        # (jei sukonfigūruotas) gali padėti, bet TIK jei jo atsakymas praeina citatos
+        # patikrą (žr. app/llm/classifier.py). Sistema visada veikia be šio žingsnio.
+        llm_result = classify_eligibility(text, source_url=url, settings=settings)
+        if llm_result is not None and llm_result.verdict != "neaisku":
+            elig = llm_result
     sales = assess_sales(
         text=text,
         eligibility_verdict=elig.verdict,
@@ -271,6 +281,8 @@ def process_candidate(
         is_already_funded=opp.status == "funded_ongoing",
     )
 
+    elig_assessed_by = "llm" if elig.rule_code == "llm_classifier" else "rules"
+
     if opp.eligibility is None:
         db.add(
             EligibilityAssessment(
@@ -283,7 +295,7 @@ def process_candidate(
                 evidence_section=elig.evidence_section,
                 what_to_verify=elig.what_to_verify,
                 rule_code=elig.rule_code,
-                assessed_by="rules",
+                assessed_by=elig_assessed_by,
                 assessed_at=now,
             )
         )
@@ -294,6 +306,7 @@ def process_candidate(
         opp.eligibility.evidence_quote = elig.evidence_quote
         opp.eligibility.evidence_url = url
         opp.eligibility.rule_code = elig.rule_code
+        opp.eligibility.assessed_by = elig_assessed_by
         opp.eligibility.assessed_at = now
 
     if opp.sales is None:
