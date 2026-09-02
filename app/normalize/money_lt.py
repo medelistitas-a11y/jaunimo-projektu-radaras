@@ -53,13 +53,16 @@ def _multiplier(token: str | None) -> int:
 
 
 def _parse_number(raw: str) -> float:
-    """Palaiko '10 000', '10.000', '10,50', '10.000,50' formatus."""
-    raw = raw.strip()
+    """Palaiko '10 000', '10.000', '10,50', '10.000,50' formatus. Naikina visų
+    rūšių tarpus (įprastą, neskaidomą \\xa0 ir kt.), kurie realiuose puslapiuose
+    dažnai naudojami kaip tūkstančių skirtukas.
+    """
+    raw = re.sub(r"\s", "", raw.strip())
     if "," in raw:
         integer_part, _, frac_part = raw.rpartition(",")
-        integer_part = integer_part.replace(".", "").replace(" ", "")
+        integer_part = integer_part.replace(".", "")
         return float(f"{integer_part}.{frac_part}")
-    raw = raw.replace(".", "").replace(" ", "")
+    raw = raw.replace(".", "")
     return float(raw)
 
 

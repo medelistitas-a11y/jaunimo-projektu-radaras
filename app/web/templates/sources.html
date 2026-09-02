@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Šaltiniai — Mostai galimybių radaras{% endblock %}
+{% block content %}
+<h1>Šaltinių sveikata</h1>
+<p>Sėkmingai patikrinta {{ active }}/{{ total }} šaltinių (žr. SOURCE_AUDIT.md dėl pilno audito).</p>
+
+<table>
+  <thead>
+    <tr><th>Pavadinimas</th><th>Savivaldybė</th><th>Domenas</th><th>Būsena</th><th>Adapteris</th><th>Paskutinis tikrinimas</th><th>Veiksmas</th></tr>
+  </thead>
+  <tbody>
+    {% for s in sources %}
+    <tr>
+      <td>{{ s.name }}</td>
+      <td>{{ s.municipality or "–" }}</td>
+      <td>{{ s.official_domain }}</td>
+      <td>
+        {% if s.status == "active" %}<span class="badge green">veikia</span>
+        {% elif s.status == "blocked_bot_protection" %}<span class="badge red">blokuota (bot apsauga)</span>
+        {% elif s.status == "needs_verification" %}<span class="badge yellow">reikia patikrinti</span>
+        {% else %}<span class="badge neutral">{{ s.status }}</span>{% endif %}
+      </td>
+      <td>{{ s.adapter }}</td>
+      <td class="muted">{{ s.last_checked_at.strftime('%Y-%m-%d %H:%M') if s.last_checked_at else "niekada" }}</td>
+      <td>
+        {% if s.start_urls %}<a href="{{ s.start_urls[0] }}" target="_blank" class="muted">atidaryti</a>{% endif %}
+        {% if s.enabled %}<button class="btn secondary" onclick="checkSource('{{ s.code }}')">Tikrinti</button>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+function checkSource(code) {
+  fetch('/api/sources/' + code + '/check', {method: 'POST'})
+    .then(r => { if (r.ok) location.reload(); else alert('Klaida arba reikalinga autentifikacija.'); });
+}
+</script>
+{% endblock %}

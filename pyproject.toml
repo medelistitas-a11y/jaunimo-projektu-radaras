@@ -5,7 +5,9 @@ exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+# E501: eilučių ilgio limitas netaikomas (ruff format tvarko formatavimą).
+# B008: FastAPI DI idiomatiškai naudoja Depends(...) kaip numatytąją reikšmę.
+ignore = ["E501", "B008"]
 
 [tool.pytest.ini_options]
 markers = [

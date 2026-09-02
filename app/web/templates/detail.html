@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ opp.title if opp else "Nerasta" }} — Mostai galimybių radaras{% endblock %}
+{% block content %}
+{% if not opp %}
+<p>Galimybė nerasta.</p>
+{% else %}
+
+<p><a href="/" class="muted">&larr; Atgal į sąrašą</a></p>
+<h1>{{ opp.title }}
+  {% if opp.sales %}<span class="badge {{ opp.sales.color }}">{{ opp.sales.color }}</span>{% endif %}
+</h1>
+<p class="muted">{{ opp.organizer_name or "" }} {% if opp.municipality %}· {{ opp.municipality }}{% endif %}</p>
+
+<div class="block">
+  <h3>Kodėl mums aktualu</h3>
+  <p>{% if opp.topics %}Rasti signalai: {{ opp.topics | join(', ') }}{% else %}Nenustatyta.{% endif %}</p>
+  <p>{{ opp.summary or "" }}</p>
+</div>
+
+<div class="block">
+  <h3>Ką galima parduoti</h3>
+  <p>{% if opp.sales %}{{ opp.sales.explanation_lt }}{% else %}Vertinimas dar neatliktas.{% endif %}</p>
+</div>
+
+<div class="block">
+  <h3>Ar MB gali teikti paraišką</h3>
+  {% if opp.eligibility %}
+  <p><span class="badge neutral">{{ opp.eligibility.verdict }}</span> (pasitikėjimas {{ opp.eligibility.confidence }}%)</p>
+  <p>{{ opp.eligibility.explanation_lt }}</p>
+  {% if opp.eligibility.evidence_quote %}
+  <code class="quote">„{{ opp.eligibility.evidence_quote }}“ — <a href="{{ opp.eligibility.evidence_url }}" target="_blank">šaltinis</a></code>
+  {% else %}
+  <p class="muted">Citatos nerasta — vertinimas NEAIŠKU, kol žmogus nepatikrins dokumento.</p>
+  {% endif %}
+  {% if opp.eligibility.what_to_verify %}<p class="muted">Ką patikrinti: {{ opp.eligibility.what_to_verify }}</p>{% endif %}
+  {% else %}
+  <p class="muted">Vertinimas dar neatliktas.</p>
+  {% endif %}
+</div>
+
+<div class="block">
+  <h3>Kliūtys ir niuansai</h3>
+  <p>{{ opp.nuance_notes or "Nenustatyta." }}</p>
+  {% if opp.possible_duplicate_of_id %}
+  <p class="muted">⚠ Galimas dublikatas galimybės #{{ opp.possible_duplicate_of_id }} — reikia žmogaus patikros.</p>
+  {% endif %}
+</div>
+
+<div class="block">
+  <h3>Kam skambinti</h3>
+  {% if opp.contacts %}
+  <ul>
+    {% for c in opp.contacts %}
+    <li>
+      {% if c.full_name %}{{ c.full_name }}{% else %}<span class="muted">(bendras kontaktas, ne konkretus asmuo)</span>{% endif %}
+      {% if c.phone_normalized %} · tel. {{ c.phone_raw }} ({{ c.phone_normalized }}){% endif %}
+      {% if c.email %} · {{ c.email }}{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Kontaktų nerasta automatiškai — reikia paieškos rankiniu būdu.</p>
+  {% endif %}
+</div>
+
+<div class="block">
+  <h3>Ką pasakyti</h3>
+  <p>{{ opp.call_script or "Scenarijus dar nesugeneruotas." }}</p>
+</div>
+
+<div class="block">
+  <h3>Įrodymai iš dokumentų</h3>
+  {% if opp.evidences %}
+  <ul>
+    {% for e in opp.evidences %}
+    <li><code class="quote">„{{ e.quote }}“</code> <a href="{{ e.source_url }}" target="_blank" class="muted">šaltinis</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Įrodymų nerasta.</p>
+  {% endif %}
+</div>
+
+<div class="block">
+  <h3>Šaltiniai ir dokumentai</h3>
+  <p><a href="{{ opp.primary_url }}" target="_blank">Pirminis puslapis</a></p>
+  {% if opp.source_urls %}<p>Kiti šaltiniai: {% for u in opp.source_urls %}<a href="{{ u }}" target="_blank">{{ loop.index }}</a> {% endfor %}</p>{% endif %}
+  {% if opp.document_urls %}<p>Dokumentai: {% for u in opp.document_urls %}<a href="{{ u }}" target="_blank">{{ u.split('/')[-1] }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+</div>
+
+<div class="block">
+  <h3>Pakeitimų istorija</h3>
+  {% if opp.change_events %}
+  <ul>
+    {% for e in opp.change_events|sort(attribute='occurred_at', reverse=True) %}
+    <li><span class="muted">{{ e.occurred_at.strftime('%Y-%m-%d %H:%M') }}</span> — {{ e.description }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">Istorijos nėra.</p>
+  {% endif %}
+</div>
+
+<div class="block">
+  <h3>Veiksmai</h3>
+  <button class="btn" onclick="review('interested')">Domina</button>
+  <button class="btn secondary" onclick="review('not_interested')">Nedomina</button>
+  <button class="btn secondary" onclick="review('contacted')">Susisiekta</button>
+  <button class="btn secondary" onclick="review('remind_later')">Atidėti</button>
+  <a class="btn secondary" href="{{ opp.primary_url }}" target="_blank">Atidaryti šaltinį</a>
+  <span id="review-status" class="muted"></span>
+</div>
+
+<script>
+function review(interest) {
+  fetch('/api/opportunities/{{ opp.id }}/review', {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({interest: interest, is_read: true})
+  }).then(r => {
+    document.getElementById('review-status').innerText = r.ok ? 'Išsaugota.' : 'Reikalinga autentifikacija.';
+  });
+}
+</script>
+
+{% endif %}
+{% endblock %}

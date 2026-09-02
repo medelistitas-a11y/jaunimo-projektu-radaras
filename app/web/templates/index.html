@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Galimybės — Mostai galimybių radaras{% endblock %}
+{% block content %}
+
+<div class="stats">
+  <div class="stat"><div class="num">{{ stats.new_green }}</div><div class="label">Naujos žalios</div></div>
+  <div class="stat"><div class="num">{{ stats.new_yellow }}</div><div class="label">Naujos geltonos</div></div>
+  <div class="stat"><div class="num">{{ stats.deadlines_soon }}</div><div class="label">Terminai per 7 d.</div></div>
+  <div class="stat"><div class="num">{{ stats.source_errors }}</div><div class="label">Šaltinių klaidos</div></div>
+  <div class="stat">
+    <div class="num" style="font-size:14px">
+      {% if stats.last_check %}{{ stats.last_check.started_at.strftime('%Y-%m-%d %H:%M') }}{% else %}niekada{% endif %}
+    </div>
+    <div class="label">Paskutinis tikrinimas</div>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <label>Spalva
+    <select name="color">
+      <option value="">visos</option>
+      <option value="green" {% if filters.color=="green" %}selected{% endif %}>žalia</option>
+      <option value="yellow" {% if filters.color=="yellow" %}selected{% endif %}>geltona</option>
+      <option value="red" {% if filters.color=="red" %}selected{% endif %}>raudona</option>
+    </select>
+  </label>
+  <label>Savivaldybė
+    <select name="municipality">
+      <option value="">visos</option>
+      {% for m in municipalities %}
+      <option value="{{ m }}" {% if filters.municipality==m %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Paraiškos tinkamumas
+    <select name="eligibility">
+      <option value="">visi</option>
+      <option value="taip" {% if filters.eligibility=="taip" %}selected{% endif %}>taip</option>
+      <option value="ne" {% if filters.eligibility=="ne" %}selected{% endif %}>ne</option>
+      <option value="su_salygomis" {% if filters.eligibility=="su_salygomis" %}selected{% endif %}>su sąlygomis</option>
+      <option value="neaisku" {% if filters.eligibility=="neaisku" %}selected{% endif %}>neaišku</option>
+    </select>
+  </label>
+  <label><input type="checkbox" name="only_with_contacts" value="1" {% if filters.only_with_contacts=="1" %}checked{% endif %}> tik su kontaktais</label>
+  <label><input type="checkbox" name="only_new" value="1" {% if filters.only_new=="1" %}checked{% endif %}> tik nauji</label>
+  <label><input type="checkbox" name="only_unread" value="1" {% if filters.only_unread=="1" %}checked{% endif %}> tik neperskaityti</label>
+  <input type="text" name="q" placeholder="Paieška..." value="{{ filters.q or '' }}">
+  <button class="btn secondary" type="submit">Filtruoti</button>
+  <a class="btn secondary" href="/api/export.csv{% if filters.color %}?color={{ filters.color }}{% endif %}">Eksportuoti CSV</a>
+  <button class="btn" type="button" id="run-crawl-btn" onclick="runCrawl()">Tikrinti dabar</button>
+  <span id="run-status" class="muted"></span>
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th>Spalva</th><th>Pavadinimas</th><th>Savivaldybė</th><th>Terminas</th>
+      <th>Biudžetas</th><th>Tinkamumas</th><th>Kitas veiksmas</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for o in opportunities %}
+    <tr>
+      <td>
+        {% if o.sales %}<span class="badge {{ o.sales.color }}">{{ o.sales.color }}</span>{% else %}<span class="badge neutral">–</span>{% endif %}
+      </td>
+      <td><a class="title-link" href="/galimybe/{{ o.id }}">{{ o.title }}</a></td>
+      <td>{{ o.municipality or "–" }}</td>
+      <td>{{ o.application_end.strftime('%Y-%m-%d') if o.application_end else "nenurodyta" }}</td>
+      <td>{{ "%.0f Eur"|format(o.total_budget_cents/100) if o.total_budget_cents else "nenurodyta" }}</td>
+      <td>{% if o.eligibility %}<span class="badge neutral">{{ o.eligibility.verdict }}</span>{% else %}–{% endif %}</td>
+      <td class="muted">{{ (o.next_action or "")[:80] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">Galimybių nerasta pagal pasirinktus filtrus. Paleiskite tikrinimą arba pakeiskite filtrus.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+function runCrawl() {
+  document.getElementById('run-status').innerText = 'Vykdoma...';
+  fetch('/api/crawl/run', {method: 'POST'})
+    .then(r => r.json().then(data => ({status: r.status, data})))
+    .then(({status, data}) => {
+      if (status === 409) {
+        document.getElementById('run-status').innerText = 'Jau vyksta kitas tikrinimas.';
+      } else {
+        document.getElementById('run-status').innerText = 'Baigta: ' + data.status + ' (naujų: ' + data.new + ')';
+        setTimeout(() => location.reload(), 1500);
+      }
+    })
+    .catch(() => { document.getElementById('run-status').innerText = 'Klaida paleidžiant tikrinimą.'; });
+}
+</script>
+{% endblock %}

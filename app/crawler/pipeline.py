@@ -29,8 +29,9 @@ from app.models.organization import Contact
 from app.models.source import Source
 from app.normalize.contacts_lt import find_emails, find_phones
 from app.normalize.dates_lt import find_all_dates
-from app.normalize.keywords_lt import is_relevant_candidate
+from app.normalize.keywords_lt import find_positive_signals, is_relevant_candidate
 from app.normalize.money_lt import find_all_money
+from app.rules.call_script import build_call_script
 from app.rules.eligibility import assess_eligibility
 from app.rules.sales import assess_sales
 
@@ -262,6 +263,13 @@ def process_candidate(
 
     opp.next_action = sales.explanation_lt
     opp.status = _infer_status(opp, today)
+    opp.topics = find_positive_signals(text)[:8]
+    opp.call_script = build_call_script(
+        institution_name=source.institution_name,
+        project_title=title,
+        full_text=text,
+        is_already_funded=opp.status == "funded_ongoing",
+    )
 
     if opp.eligibility is None:
         db.add(

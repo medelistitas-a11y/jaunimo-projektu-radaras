@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Mostai galimybių radaras{% endblock %}</title>
+<style>
+  :root {
+    --green: #1a7f37; --green-bg: #e6f6ea;
+    --yellow: #9a6700; --yellow-bg: #fff8e1;
+    --red: #b91c1c; --red-bg: #fdecec;
+    --border: #d0d7de; --text: #1f2328; --muted: #57606a;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #f6f8fa; color: var(--text); }
+  header { background: #0b3d2e; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
+  header a { color: white; text-decoration: none; margin-left: 16px; font-size: 14px; }
+  header .brand { font-weight: 700; font-size: 18px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; min-width: 140px; }
+  .stat .num { font-size: 24px; font-weight: 700; }
+  .stat .label { font-size: 12px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  th { background: #f0f2f5; font-size: 12px; text-transform: uppercase; color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.green { background: var(--green-bg); color: var(--green); }
+  .badge.yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .badge.red { background: var(--red-bg); color: var(--red); }
+  .badge.neutral { background: #eee; color: #444; }
+  .filters { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .filters select, .filters input[type=text] { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }
+  .filters label { font-size: 13px; color: var(--muted); display: flex; gap: 4px; align-items: center; }
+  a.title-link { color: #0b3d2e; text-decoration: none; font-weight: 600; }
+  a.title-link:hover { text-decoration: underline; }
+  .btn { background: #0b3d2e; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; }
+  .btn.secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+  .block { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .block h3 { margin-top: 0; font-size: 14px; text-transform: uppercase; color: var(--muted); }
+  .muted { color: var(--muted); }
+  code.quote { display: block; background: #f6f8fa; border-left: 3px solid var(--border); padding: 8px 12px; margin: 6px 0; font-style: italic; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <div><span class="brand">Mostai galimybių radaras</span></div>
+  <nav>
+    <a href="/">Galimybės</a>
+    <a href="/saltiniai">Šaltiniai</a>
+    <a href="/pranesimai">Pranešimai</a>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

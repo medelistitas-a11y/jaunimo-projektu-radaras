@@ -14,13 +14,14 @@ from app.config import Settings
 from app.crawler.adapters import generic_html, wp_json
 from app.crawler.adapters.js_playwright import PlaywrightUnavailableError
 from app.crawler.adapters.js_playwright import discover_items as js_discover_items
+from app.crawler.dedupe import canonicalize_url
 from app.crawler.http_client import FetchError, PoliteHttpClient, RobotsDisallowedError
-from app.crawler.pipeline import process_candidate
+from app.crawler.pipeline import content_hash, process_candidate
 from app.crawler.ssrf_guard import SsrfBlockedError
 from app.extraction.docx_extract import extract_docx_text
 from app.extraction.html_extract import extract_page
 from app.extraction.pdf_extract import extract_pdf_text
-from app.models.document import Document
+from app.models.document import CrawledPage, Document
 from app.models.source import CrawlRun, Source, SourceCheckResult
 
 logger = logging.getLogger("app.crawler.runner")
@@ -39,6 +40,29 @@ def _document_type(url: str) -> str:
         if lower.endswith(ext):
             return kind
     return "other"
+
+
+def _persist_original(
+    content: bytes, content_hash: str, file_type: str, settings: Settings
+) -> str | None:
+    """Įrašo originalų dokumentą į DOCUMENT_STORAGE_DIR, jeigu katalogas
+    egzistuoja ir yra rašomas (pvz. Docker Compose bendras tomas). Jei ne
+    (pvz. atskiras vienkartinis Render cron konteineris be bendro disko su
+    web servisu) — tyliai negrąžina kelio; ištrauktas tekstas vis tiek
+    išsaugomas DB, kuri YRA bendra abiem servisams.
+    """
+    from pathlib import Path
+
+    try:
+        base_dir = Path(settings.document_storage_dir)
+        base_dir.mkdir(parents=True, exist_ok=True)
+        target = base_dir / f"{content_hash}.{file_type}"
+        if not target.exists():
+            target.write_bytes(content)
+        return str(target)
+    except OSError as exc:
+        logger.debug("Nepavyko išsaugoti originalaus dokumento (%s): %s", content_hash, exc)
+        return None
 
 
 def _try_advisory_lock(db: Session, key: int = 823_401) -> bool:
@@ -215,11 +239,22 @@ def _run_single_source(
 
 def _process_item(db, source, item, client, settings, check) -> None:
     check.pages_fetched += 1
+    canon_url = canonicalize_url(item.url)
+    previous_page = (
+        db.query(CrawledPage)
+        .filter(CrawledPage.source_id == source.id, CrawledPage.canonical_url == canon_url)
+        .one_or_none()
+    )
+
     if item.detail_html is not None:
         html = item.detail_html
         base_url = item.url
     else:
-        result = client.get(item.url)
+        result = client.get(
+            item.url,
+            etag=previous_page.etag if previous_page else None,
+            last_modified=previous_page.last_modified if previous_page else None,
+        )
         if result.not_modified:
             check.pages_unchanged += 1
             return
@@ -227,6 +262,34 @@ def _process_item(db, source, item, client, settings, check) -> None:
             return
         html = result.text
         base_url = item.url
+
+    content_hash_value = content_hash(html)
+    if previous_page is not None and previous_page.content_hash == content_hash_value:
+        # Turinys nepasikeitė (serveris negrąžino 304, bet hash sutampa) — neanalizuojame
+        # iš naujo, tik atnaujiname patikrinimo laiką.
+        check.pages_unchanged += 1
+        previous_page.fetched_at = dt.datetime.now(dt.UTC)
+        return
+
+    etag = None
+    last_modified = None
+    if item.detail_html is None:
+        etag = result.headers.get("etag")
+        last_modified = result.headers.get("last-modified")
+
+    if previous_page is None:
+        previous_page = CrawledPage(
+            source_id=source.id,
+            url=item.url,
+            canonical_url=canon_url,
+            content_hash=content_hash_value,
+        )
+        db.add(previous_page)
+    previous_page.fetched_at = dt.datetime.now(dt.UTC)
+    previous_page.content_hash = content_hash_value
+    previous_page.etag = etag
+    previous_page.last_modified = last_modified
+    previous_page.title = item.title[:500]
 
     page = extract_page(html, base_url=base_url)
     full_text = page.text
@@ -254,13 +317,19 @@ def _process_item(db, source, item, client, settings, check) -> None:
 
         import hashlib
 
+        doc_hash = hashlib.sha256(doc_result.content).hexdigest()
+        storage_path = _persist_original(
+            doc_result.content, doc_hash, _document_type(doc_url), settings
+        )
+
         db.add(
             Document(
                 source_url=doc_url,
                 file_type=_document_type(doc_url),
                 file_size_bytes=len(doc_result.content),
-                content_hash=hashlib.sha256(doc_result.content).hexdigest(),
+                content_hash=doc_hash,
                 downloaded_at=dt.datetime.now(dt.UTC),
+                storage_path=storage_path,
                 extraction_method=extraction_method,
                 extracted_text=doc_text,
                 extraction_status="ok"

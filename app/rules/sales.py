@@ -63,7 +63,12 @@ def assess_sales(
 
     deadline_passed = bool(application_end and application_end < today)
     activity_passed = bool(activity_end and activity_end < today)
-    explicitly_finished = bool(deadline_hint)
+    # "explicitly_finished" frazės (pvz. "rezultatai paskelbti") laikomos patikimu signalu
+    # TIK jei jos neprieštarauja jau nustatytam ateities terminui — pavienis žodis "pasibaigė"
+    # tekste dažnai reiškia bendrą būsimą sąlygą ("veiklos turi pasibaigti iki..."), o ne tai,
+    # kad ŠIS konkursas jau praėjęs.
+    future_deadline_known = bool(application_end and application_end >= today)
+    explicitly_finished = bool(deadline_hint) and not future_deadline_known
 
     # --- 1. RAUDONA ---
     if explicitly_finished or (deadline_passed and activity_passed):

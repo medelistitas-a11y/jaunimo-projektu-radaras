@@ -1,0 +1,140 @@
+# Render Blueprint. Patikrinta pagal https://render.com/docs/blueprint-spec
+# (2026-09-02). Sukuria: valdomą PostgreSQL DB, žiniatinklio paslaugą (FastAPI,
+# migracijos paleidžiamos prieš starto komandą) ir atskirą kasdienį cron darbą.
+#
+# SVARBU dėl laiko juostos: Render cron "schedule" laukas VISADA vertinamas UTC
+# laiku, nepriklausomai nuo TIMEZONE aplinkos kintamojo. Žemiau nurodytas
+# "30 3 * * *" atitinka maždaug 06:30 Europe/Vilnius vasaros (EEST, UTC+3) metu
+# ir 05:30 žiemos (EET, UTC+2) metu — Render savaime NEPRISITAIKO prie vasaros
+# laiko pakeitimo. Jei reikia tikslaus laiko visus metus, administratorius turi
+# du kartus per metus rankiniu būdu pakoreguoti "schedule" reikšmę šiame faile
+# (arba naudoti savarankiškai talpinamą Docker Compose diegimą su
+# app/scheduler/run_worker.py, kuris naudoja tikrą Europe/Vilnius laiko juostą
+# per APScheduler).
+#
+# Kainos pastaba: Render planų kainos ir nemokamo lygio galimybės keičiasi.
+# ŠIS FAILAS NEŽADA, kad pasirinkti planai yra nemokami. Prieš publikuodami
+# patikrinkite aktualias kainas https://render.com/pricing ir pasirinkite
+# planą naršyklėje publikavimo metu (žr. README "Publikavimas" skyrių).
+
+databases:
+  - name: mostai-db
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: mostai-web
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerCommand: >-
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 10000"
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mostai-db
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: TIMEZONE
+        value: Europe/Vilnius
+      - key: SCHEDULER_ENABLED
+        value: "false" # produkcijoje kasdienį darbą atlieka atskiras cron servisas žemiau
+      - key: DAILY_CRAWL_TIME
+        value: "06:30"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD_HASH
+        sync: false # administratorius įrašo per Render Dashboard (žr. README)
+      - key: ADMIN_CONTACT_EMAIL
+        sync: false
+      - key: CRAWLER_USER_AGENT
+        value: "MostaiGalimybiuRadaras/0.1 (+mailto:info@example.lt)"
+      - key: OCR_ENABLED
+        value: "true"
+      - key: OCR_LANGUAGES
+        value: lit+eng
+      - key: DOCUMENT_STORAGE_DIR
+        value: /data/documents
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-sonnet-5
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_TO
+        sync: false
+    disk:
+      name: mostai-documents
+      mountPath: /data/documents
+      sizeGB: 5
+
+  - type: cron
+    name: mostai-daily-crawl
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    schedule: "30 3 * * *" # žr. laiko juostos pastabą failo viršuje
+    dockerCommand: python -m app.scripts.run_daily
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mostai-db
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: TIMEZONE
+        value: Europe/Vilnius
+      - key: ADMIN_CONTACT_EMAIL
+        sync: false
+      - key: CRAWLER_USER_AGENT
+        value: "MostaiGalimybiuRadaras/0.1 (+mailto:info@example.lt)"
+      - key: OCR_ENABLED
+        value: "true"
+      - key: OCR_LANGUAGES
+        value: lit+eng
+      - key: DOCUMENT_STORAGE_DIR
+        value: /data/documents
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-sonnet-5
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_TO
+        sync: false
+    # PASTABA: šiam cron servisui SĄMONINGAI NEPRIDĖTAS diskas. Render diskai yra
+    # priskirti vienam servisui ir NĖRA bendrinami tarp skirtingų servisų (web ir
+    # cron negalėtų matyti tų pačių failų), todėl originalūs šio darbo atsisiųsti
+    # dokumentai lieka tik laikinajame konteinerio faile ir yra ištrinami darbui
+    # pasibaigus. Iš dokumento ištrauktas TEKSTAS (kuris ir naudojamas vertinimams)
+    # visada įrašomas į bendrą PostgreSQL DB, todėl funkcionalumas nenukenčia —
+    # nukenčia tik galimybė vėliau atsisiųsti originalų PDF/DOCX failą per web
+    # sąsają dokumentams, rastiems būtent per šį cron darbą. Pilnas originalų
+    # išsaugojimas abiem servisams reikalautų išorinės objektų saugyklos (pvz.
+    # S3 suderinamos), kas laikoma tolesnio etapo darbu (žr. README apribojimus).
+    # Vietinis Docker Compose diegimas šio apribojimo neturi — ten `documents_data`
+    # tomas bendrinamas tarp `web` ir `worker` servisų.

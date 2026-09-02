@@ -72,7 +72,15 @@ TRAINING_FIT_MARKERS = [
     "emoc",
 ]
 
-DEADLINE_PASSED_HINTS = ["pasibaig", "jau pasibaigęs", "rezultatai paskelbti", "archyvuot"]
+DEADLINE_PASSED_HINTS = [
+    "jau pasibaigęs",
+    "jau pasibaigusi",
+    "konkursas baigėsi",
+    "konkursas pasibaigė",
+    "rezultatai paskelbti",
+    "laimėtojai paskelbti",
+    "archyvuot",
+]
 
 PROCUREMENT_MARKERS = [
     "viešasis pirkimas",

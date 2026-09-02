@@ -118,13 +118,19 @@ sources:
     adapter: generic_html
     adapter_config: {}
     check_frequency_hours: 48
-    status: active
+    status: needs_verification
     is_official: true
-    enabled: true
+    enabled: false
     notes: >
-      2026-09-02: HTTP 200. Antrinis/stebimas šaltinis — LTKT fokusas yra kultūra/menas, ne
-      jaunimas, bet pasitaiko su jaunimu/bendruomeniškumu susijusių krypčių. Raktažodžių filtras
-      turi būti griežtesnis šiam šaltiniui, kad nebūtų triukšmo.
+      2026-09-02: HTTP 200 (puslapis pasiekiamas), BET sąrašo puslapis yra HTML lentelė
+      (.table_ref_box su tuščiais "rodyklės" nuorodų tekstais, pavadinimas kitoje stulpelio
+      ląstelėje), ne straipsnių sąrašas — bendras generic_html adapteris (article/a
+      numatytieji selektoriai) klaidingai sujungia visą puslapio meniu į vieną "elementą".
+      Realiu bandymu tai patvirtinta pirmame rankiniame crawl teste (sukūrė vieną Opportunity
+      su sujungtu meniu tekstu kaip pavadinimu ir neteisingai priskirtu dideliu biudžetu).
+      Kol nesukurtas skirtas lentelės adapteris, šaltinis IŠJUNGTAS automatiniam crawl
+      (enabled: false), kad nebūtų generuojami klaidingi įrašai. Antrinis/stebimas šaltinis —
+      LTKT fokusas yra kultūra/menas, ne jaunimas.
 
   - code: lietuvos_kulturos_kongresas
     name: "Lietuvos kultūros kongresas"

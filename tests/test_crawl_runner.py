@@ -138,6 +138,29 @@ def test_run_crawl_single_source_error_does_not_abort_run(db_session, test_setti
     assert db_session.query(Opportunity).count() == 1
 
 
+def test_unchanged_page_is_not_reanalyzed_on_second_run(db_session, test_settings):
+    from app.models.assessment import ChangeEvent
+    from app.models.document import CrawledPage
+
+    db_session.add(_make_html_source())
+    db_session.commit()
+
+    run1 = run_crawl(db_session, test_settings, trigger="manual")
+    assert run1.sources_ok == 1
+    opp_count_after_first = db_session.query(Opportunity).count()
+    change_events_after_first = db_session.query(ChangeEvent).count()
+    pages_after_first = db_session.query(CrawledPage).count()
+    assert pages_after_first > 0
+
+    run2 = run_crawl(db_session, test_settings, trigger="manual")
+    check2 = run2.check_results[0]
+    # Turinys nepasikeitė — puslapiai pažymėti kaip "unchanged", nesukurta naujų
+    # Opportunity įrašų ir jokių papildomų ChangeEvent (t. y. neanalizuota iš naujo).
+    assert check2.pages_unchanged > 0
+    assert db_session.query(Opportunity).count() == opp_count_after_first
+    assert db_session.query(ChangeEvent).count() == change_events_after_first
+
+
 def test_blocked_bot_protection_source_is_skipped_not_errored(db_session, test_settings):
     src = _make_html_source()
     src.code = "test_blocked"

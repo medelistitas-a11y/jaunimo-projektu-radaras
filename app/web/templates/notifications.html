@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Pranešimai — Mostai galimybių radaras{% endblock %}
+{% block content %}
+<h1>Pranešimų centras</h1>
+{% if not notifications %}
+<p class="muted">Pranešimų nėra.</p>
+{% endif %}
+{% for n in notifications %}
+<div class="block" style="{% if n.is_read %}opacity:0.6{% endif %}">
+  <h3>{{ n.kind }}</h3>
+  <p><strong>{{ n.title }}</strong></p>
+  <p>{{ n.body }}</p>
+  <p class="muted">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}
+    {% if n.opportunity_id %}· <a href="/galimybe/{{ n.opportunity_id }}">peržiūrėti galimybę</a>{% endif %}
+  </p>
+</div>
+{% endfor %}
+{% endblock %}
