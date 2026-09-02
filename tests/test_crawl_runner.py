@@ -161,10 +161,10 @@ def test_unchanged_page_is_not_reanalyzed_on_second_run(db_session, test_setting
     assert db_session.query(ChangeEvent).count() == change_events_after_first
 
 
-def test_blocked_bot_protection_source_is_skipped_not_errored(db_session, test_settings):
+def test_blocked_in_current_runtime_source_is_skipped_not_errored(db_session, test_settings):
     src = _make_html_source()
     src.code = "test_blocked"
-    src.status = "blocked_bot_protection"
+    src.status = "blocked_in_current_runtime"
     src.notes = "Cloudflare iššūkis"
     db_session.add(src)
     db_session.commit()

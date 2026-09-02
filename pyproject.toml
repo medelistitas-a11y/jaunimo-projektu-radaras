@@ -12,5 +12,7 @@ ignore = ["E501", "B008"]
 [tool.pytest.ini_options]
 markers = [
     "live: tests that hit real external websites (not run in CI by default)",
+    "docker: integration tests that build/run real Docker Compose containers (not run in CI by default)",
 ]
 testpaths = ["tests"]
+addopts = "-m 'not live and not docker'"

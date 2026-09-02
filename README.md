@@ -260,7 +260,7 @@ saugomas bendroje PostgreSQL DB. Pilnam originalų bendrinimui reikėtų išorin
   (blokuoja localhost, privačius/link-local IP, `file://` ir kt. — žr.
   `app/crawler/ssrf_guard.py`).
 - **robots.txt** gerbiamas visada; jei nepasiekiamas dėl bot-apsaugos (dažnas atvejis, žr.
-  `SOURCE_AUDIT.md`), šaltinis pažymimas `blocked_bot_protection` ir NEBANDOMAS apeiti.
+  `SOURCE_AUDIT.md`), šaltinis pažymimas `blocked_in_current_runtime` ir NEBANDOMAS apeiti.
   Programa niekada nebando spręsti CAPTCHA ar Cloudflare JS iššūkių.
 - **Failų apribojimai**: dydžio limitas (`CRAWLER_MAX_DOWNLOAD_MB`), MIME/turinio tipo
   patikra, vykdomieji failai nesaugomi.

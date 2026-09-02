@@ -65,6 +65,19 @@ def seed_sources(db: Session, path: Path = SOURCES_YAML_PATH) -> tuple[int, int]
                 setattr(existing, k, v)
             updated += 1
 
+    db.flush()
+
+    # Antras praėjimas: išspręsti `alternative_source_of` (kodas -> id) po to, kai VISI
+    # šaltiniai jau egzistuoja DB (tvarka sources.yaml faile nesvarbi).
+    for entry in data.get("sources", []):
+        alt_code = entry.get("alternative_source_of")
+        if not alt_code:
+            continue
+        this_source = db.query(Source).filter_by(code=entry["code"]).one_or_none()
+        primary_source = db.query(Source).filter_by(code=alt_code).one_or_none()
+        if this_source is not None and primary_source is not None:
+            this_source.alternative_source_of_id = primary_source.id
+
     for muni in data.get("municipalities", []):
         code = f"muni_{_slugify(muni['domain'])}"
         existing = db.query(Source).filter_by(code=code).one_or_none()

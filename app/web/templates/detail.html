@@ -7,9 +7,22 @@
 
 <p><a href="/" class="muted">&larr; Atgal į sąrašą</a></p>
 <h1>{{ opp.title }}
-  {% if opp.sales %}<span class="badge {{ opp.sales.color }}">{{ opp.sales.color }}</span>{% endif %}
+  {% if opp.processing_status == "confirmed" and opp.sales %}<span class="badge {{ opp.sales.color }}">{{ opp.sales.color }}</span>{% endif %}
 </h1>
 <p class="muted">{{ opp.organizer_name or "" }} {% if opp.municipality %}· {{ opp.municipality }}{% endif %}</p>
+
+{% if opp.processing_status != "confirmed" %}
+<div class="block" style="border-color:#c9a227;background:#fffaf0">
+  {% if opp.processing_status == "unprocessed_candidate" %}
+  <p><strong>Neapdorotas kandidatas.</strong> Tai tik raktažodžių sutapimas — sistema NERADO jokios
+  citatos pagrindo tinkamumui ar pardavimo galimybei įvertinti. NĖRA patvirtinta galimybė, kol
+  žmogus nepatikrins originalaus šaltinio.</p>
+  {% else %}
+  <p><strong>Reikia žmogaus peržiūros.</strong> Vertinimas silpnas arba galimas dublikatas — prieš
+  laikant tai patvirtinta galimybe, patikrinkite originalų šaltinį.</p>
+  {% endif %}
+</div>
+{% endif %}
 
 <div class="block">
   <h3>Kodėl mums aktualu</h3>

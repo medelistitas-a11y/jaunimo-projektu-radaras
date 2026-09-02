@@ -44,8 +44,19 @@ class Settings(BaseSettings):
     ocr_languages: str = "lit+eng"
 
     document_retention_days: int = 365
-    document_storage_dir: str = "/data/documents"
     max_document_size_mb: int = 20
+
+    # --- Pasirenkama S3 suderinama objektų saugykla originaliems dokumentams ---
+    # Web ir cron servisai NEPRIKLAUSO nuo bendro lokalaus disko (žr.
+    # app/storage/object_store.py). Jei S3_ENABLED=false (numatyta), originalūs
+    # PDF/DOCX failai po teksto ištraukimo tiesiog NESAUGOMI — DB (ištrauktas
+    # tekstas, hash, metaduomenys) yra vienintelis šaltinis tiesai.
+    s3_enabled: bool = False
+    s3_endpoint_url: str = ""
+    s3_bucket: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_region: str = ""
 
     @property
     def smtp_configured(self) -> bool:

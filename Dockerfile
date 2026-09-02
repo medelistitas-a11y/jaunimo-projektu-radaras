@@ -34,8 +34,6 @@ RUN python -m playwright install --with-deps chromium || true
 
 COPY . .
 
-RUN mkdir -p /data/documents
-
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

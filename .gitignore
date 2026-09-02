@@ -8,10 +8,19 @@ venv/
 .ruff_cache/
 htmlcov/
 .coverage
-data/
-storage/
+/data/
+/storage/
 *.db
 *.sqlite3
 .DS_Store
 node_modules/
 backups/*.sql.gz
+
+# Vietiniai pagalbiniai failai `make test-storage-decoupling` paleidimui
+# apribotos tinklo prieigos kūrimo aplinkose (žr. tests/test_storage_decoupling.py).
+# NIEKADA nenaudojami produkcijoje/render.yaml — tikras Dockerfile/docker-compose.yml
+# jų nereikalauja.
+Dockerfile.dockertest
+docker-compose.dockertest.override.yml
+ccr-ca-bundle.crt.tmp
+audit.db

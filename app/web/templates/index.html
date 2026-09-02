@@ -15,6 +15,26 @@
   </div>
 </div>
 
+<p class="muted" style="margin:8px 0">
+  Žalias/geltonas/raudonas raktažodžių sutapimas NĖRA automatiškai patvirtinta galimybė —
+  žemiau esantys etapai atskiria jau patikimai patvirtintus įrašus nuo dar neapdorotų
+  kandidatų ir tų, kuriems reikia žmogaus peržiūros (žr. SOURCE_AUDIT.md).
+</p>
+<div class="stage-tabs" style="display:flex;gap:8px;margin-bottom:12px">
+  <a class="btn {% if not filters.stage %}active{% endif %} secondary" href="?">
+    Visi ({{ stage_counts.values() | sum }})
+  </a>
+  <a class="btn {% if filters.stage=='confirmed' %}active{% endif %} secondary" href="?stage=confirmed">
+    Aktualios galimybės ({{ stage_counts.confirmed }})
+  </a>
+  <a class="btn {% if filters.stage=='needs_review' %}active{% endif %} secondary" href="?stage=needs_review">
+    Reikia žmogaus peržiūros ({{ stage_counts.needs_review }})
+  </a>
+  <a class="btn {% if filters.stage=='unprocessed_candidate' %}active{% endif %} secondary" href="?stage=unprocessed_candidate">
+    Neapdoroti kandidatai ({{ stage_counts.unprocessed_candidate }})
+  </a>
+</div>
+
 <form class="filters" method="get">
   <label>Spalva
     <select name="color">
@@ -54,15 +74,16 @@
 <table>
   <thead>
     <tr>
-      <th>Spalva</th><th>Pavadinimas</th><th>Savivaldybė</th><th>Terminas</th>
+      <th>Etapas</th><th>Spalva</th><th>Pavadinimas</th><th>Savivaldybė</th><th>Terminas</th>
       <th>Biudžetas</th><th>Tinkamumas</th><th>Kitas veiksmas</th>
     </tr>
   </thead>
   <tbody>
     {% for o in opportunities %}
     <tr>
+      <td><span class="badge stage-{{ o.processing_status }}">{{ stage_labels[o.processing_status] }}</span></td>
       <td>
-        {% if o.sales %}<span class="badge {{ o.sales.color }}">{{ o.sales.color }}</span>{% else %}<span class="badge neutral">–</span>{% endif %}
+        {% if o.processing_status == "confirmed" and o.sales %}<span class="badge {{ o.sales.color }}">{{ o.sales.color }}</span>{% else %}<span class="badge neutral">–</span>{% endif %}
       </td>
       <td><a class="title-link" href="/galimybe/{{ o.id }}">{{ o.title }}</a></td>
       <td>{{ o.municipality or "–" }}</td>
@@ -72,7 +93,7 @@
       <td class="muted">{{ (o.next_action or "")[:80] }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="7" class="muted">Galimybių nerasta pagal pasirinktus filtrus. Paleiskite tikrinimą arba pakeiskite filtrus.</td></tr>
+    <tr><td colspan="8" class="muted">Galimybių nerasta pagal pasirinktus filtrus. Paleiskite tikrinimą arba pakeiskite filtrus.</td></tr>
     {% endfor %}
   </tbody>
 </table>

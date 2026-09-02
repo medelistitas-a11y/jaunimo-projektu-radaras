@@ -8,8 +8,21 @@ Create Date: 2026-09-02
 (``Base.metadata``), kad sukurtų visas lenteles vienu žingsniu — tai leidžia
 laikyti vieną tiesos šaltinį (app/models/*.py) tiek SQLite (testams), tiek
 PostgreSQL (Docker/produkcija) aplinkose be dviejų atskirų schemų priežiūros.
-Būsimi schemos pakeitimai turėtų būti pridedami kaip atskiros, įprastos
-Alembic migracijos su explicit op.* komandomis.
+
+SVARBI PASTABA (2026-09-02): iš pradžių čia buvo pridėtos dvi atskiros
+explicit migracijos (0002, 0003) tolesniems schemos pakeitimams. Jos buvo
+SUJUNGTOS atgal į šį failą, nes paaiškėjo reali problema — kadangi šis
+failas skaito GYVĄ ``Base.metadata`` migracijos VEIKIMO metu (ne užšaldytą
+istorinę schemą), bet koks naujas modelio laukas automatiškai atsiranda ir
+ČIA, todėl atskira vėlesnė migracija, bandanti pridėti TĄ PATĮ lauką, gauna
+"duplicate column" klaidą. Kadangi ši programa dar nepaskelbta produkcijoje
+(nėra realios DB, priklausančios nuo istorinės migracijų sekos), saugu ir
+teisinga sujungti schemą atgal į vieną pradinį failą. PO PIRMO REALAUS
+PRODUKCINIO PALEIDIMO šis sprendimas nebebus tinkamas — nuo to momento
+kiekvienas schemos pakeitimas TURI būti atskira migracija su explicit
+``op.*`` komandomis (idealiausia — sugeneruota ``alembic revision
+--autogenerate`` ir rankiniu būdu patikrinta), o šis failas daugiau
+NEBEKEIČIAMAS.
 """
 
 from alembic import op

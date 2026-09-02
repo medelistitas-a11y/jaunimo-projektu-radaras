@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 
 from app.config import get_settings
+from app.crawler.availability_probe import run_weekly_availability_probes
 from app.crawler.runner import run_crawl
 from app.db import SessionLocal
 from app.notify.center import generate_notifications_for_run
@@ -35,6 +36,11 @@ def run_daily_job() -> None:
             run.updated_opportunities,
         )
         generate_notifications_for_run(db, run)
+
+        probed = run_weekly_availability_probes(db, settings)
+        if probed:
+            logger.info("Savaitinė blokuotų šaltinių pasiekiamumo patikra: %d šaltiniai.", probed)
+
         send_daily_digest(db, settings)
         removed = cleanup_old_documents()
         if removed:
